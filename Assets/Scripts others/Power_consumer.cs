@@ -1,11 +1,20 @@
 using UnityEngine;
 
-public abstract class Power_Consumer : ElectricalNode
+/// <summary>
+/// Base class for any node that draws power from the grid.
+/// Renamed from Power_Consumer to match C# naming conventions.
+/// </summary>
+public abstract class PowerConsumer : ElectricalNode
 {
-    public float demandMW = 10f;
+    [Header("Demand")]
+    [SerializeField] protected float demandMW = 10f;
 
-    public override float GetConsumptionMW()
-    {
-        return demandMW;
-    }
+    [Header("State")]
+    [SerializeField] protected bool isActive = true;
+
+    public float DemandMW => demandMW;
+    public bool  IsActive => isActive;
+
+    public override float GetConsumptionMW() =>
+        isActive ? demandMW : 0f;
 }

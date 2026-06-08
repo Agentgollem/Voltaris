@@ -1,63 +1,124 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>
+/// Central registry and simulation engine for the electrical grid.
+///
+/// Uses a dirty flag so the BFS graph traversal only runs when the topology
+/// actually changes (node/line added or removed), not every frame.
+/// Simulation (frequency calculation) runs on a separate fixed-interval timer
+/// so it's cheap and consistent regardless of frame rate.
+/// </summary>
 public class PowerGridManager : MonoBehaviour
 {
-    public static PowerGridManager Instance;
+    public static PowerGridManager Instance { get; private set; }
 
-    [Header("All Nodes in Scene")]
-    public List<ElectricalNode> allNodes = new();
+    [Header("Registry (modified at runtime)")]
+    [SerializeField] private List<ElectricalNode> allNodes = new();
+    [SerializeField] private List<PowerLine>      allLines = new();
 
-    [Header("Detected Networks (Islands)")]
-    public List<List<ElectricalNode>> networks = new();
+    [Header("Simulation")]
+    [SerializeField] private float tickIntervalSeconds = 0.5f;
+
+    // Public read-only view; grid UI or game logic can subscribe/read from here
+    public IReadOnlyList<PowerNetwork> Networks => networks;
+    private readonly List<PowerNetwork> networks = new();
+
+    private bool  isDirty  = true;
+    private float tickTimer;
+
+    // ── Unity lifecycle ───────────────────────────────────────────────────────
 
     private void Awake()
     {
-        if (Instance != null)
+        if (Instance != null && Instance != this)
         {
             Destroy(gameObject);
             return;
         }
-
         Instance = this;
     }
 
     private void Update()
     {
-        RebuildNetworks();
-        SimulateNetworks();
+        // Topology rebuild — only when something changed
+        if (isDirty)
+        {
+            CleanNullRefs();
+            RebuildNetworks();
+            isDirty = false;
+        }
+
+        // Simulation tick — independent of topology rebuilds
+        tickTimer += Time.deltaTime;
+        if (tickTimer >= tickIntervalSeconds)
+        {
+            tickTimer = 0f;
+            SimulateNetworks();
+        }
     }
 
-    #region Node Registration
+    // ── Registration ──────────────────────────────────────────────────────────
 
     public void RegisterNode(ElectricalNode node)
     {
-        if (!allNodes.Contains(node))
+        if (node != null && !allNodes.Contains(node))
+        {
             allNodes.Add(node);
+            MarkDirty();
+        }
     }
 
     public void UnregisterNode(ElectricalNode node)
     {
-        allNodes.Remove(node);
+        if (allNodes.Remove(node)) MarkDirty();
     }
 
-    #endregion
+    public void RegisterLine(PowerLine line)
+    {
+        if (line != null && !allLines.Contains(line))
+        {
+            allLines.Add(line);
+            MarkDirty();
+        }
+    }
 
-    #region Network Building (Graph Search)
+    public void UnregisterLine(PowerLine line)
+    {
+        if (allLines.Remove(line)) MarkDirty();
+    }
 
+    /// <summary>
+    /// Call this whenever something changes that affects power flow
+    /// (generator shuts down, consumer activates, etc.) but does NOT
+    /// change the physical wire topology.
+    /// </summary>
+    public void MarkDirty() => isDirty = true;
+
+    // ── Graph building ────────────────────────────────────────────────────────
+
+    /// <summary>Removes Unity-destroyed objects that left null slots in the lists.</summary>
+    void CleanNullRefs()
+    {
+        allNodes.RemoveAll(n => n == null);
+        allLines.RemoveAll(l => l == null);
+    }
+
+    /// <summary>
+    /// BFS flood-fill across the ConnectionPoint graph to find all isolated
+    /// electrical islands and wrap them in PowerNetwork objects.
+    /// </summary>
     void RebuildNetworks()
     {
         networks.Clear();
-
-        HashSet<ElectricalNode> visited = new();
+        var visited = new HashSet<ElectricalNode>();
 
         foreach (var startNode in allNodes)
         {
-            if (startNode == null || visited.Contains(startNode))
-                continue;
+            if (startNode == null || visited.Contains(startNode)) continue;
 
-            List<ElectricalNode> network = new();
-            Queue<ElectricalNode> queue = new();
+            var island = new List<ElectricalNode>();
+            var queue  = new Queue<ElectricalNode>();
 
             queue.Enqueue(startNode);
             visited.Add(startNode);
@@ -65,55 +126,37 @@ public class PowerGridManager : MonoBehaviour
             while (queue.Count > 0)
             {
                 var current = queue.Dequeue();
-                network.Add(current);
+                island.Add(current);
 
-                foreach (var line in current.connections)
+                foreach (var cp in current.connectionPoints)
                 {
-                    if (line == null) continue;
+                    if (cp == null) continue;
 
-                    ElectricalNode next = line.GetOther(current);
-
-                    if (next != null && !visited.Contains(next))
+                    foreach (var line in cp.connectedLines)
                     {
-                        visited.Add(next);
-                        queue.Enqueue(next);
+                        if (line == null) continue;
+
+                        var neighbor = line.GetOther(cp)?.owner;
+
+                        // visited.Add returns false if already present (HashSet)
+                        if (neighbor != null && visited.Add(neighbor))
+                            queue.Enqueue(neighbor);
                     }
                 }
             }
 
-            networks.Add(network);
+            networks.Add(new PowerNetwork(island));
         }
     }
 
-    #endregion
-
-    #region Simulation
+    // ── Simulation ────────────────────────────────────────────────────────────
 
     void SimulateNetworks()
     {
         foreach (var net in networks)
         {
-            float production = 0f;
-            float consumption = 0f;
-
-            foreach (var node in net)
-            {
-                if (node == null) continue;
-
-                production += node.GetProductionMW();
-                consumption += node.GetConsumptionMW();
-            }
-
-            float imbalance = production - consumption;
-
-            float frequency = 50f + imbalance * 0.01f;
-
-            frequency = Mathf.Clamp(frequency, 45f, 55f);
-
-            // Debug per network
-            Debug.Log($"Network [{net.Count} nodes] | P: {production} | C: {consumption} | F: {frequency}");
+            net.Recalculate();
+            Debug.Log(net.ToString());
         }
     }
-
-    #endregion
 }

@@ -1,43 +1,47 @@
 using UnityEngine;
 
-public abstract class EnergyProducer : MonoBehaviour
+/// <summary>
+/// Base class for any node that generates electrical power.
+///
+/// KEY DESIGN: GetProductionMW() is sealed here. It applies the isRunning gate
+/// once so subclasses never have to check it themselves — they only implement
+/// GetPowerOutputMW() (raw capacity while running).
+///
+/// Before this existed, EnergyProducer.GetPowerOutputMW() was never called by
+/// the grid because PowerGridManager only knew about GetProductionMW(). That
+/// disconnect is the root cause of generators silently producing nothing.
+/// </summary>
+public abstract class EnergyProducer : ElectricalNode
 {
-    [Header("Electrical Properties")]
-    [SerializeField] protected float voltageKV = 20f;
-    [SerializeField] protected float frequencyHz = 50f;
+    [Header("Electrical Spec")]
+    [SerializeField] protected float ratedVoltageKV    = 20f;
+    [SerializeField] protected float ratedFrequencyHz  = 50f;
 
-    [SerializeField] protected float Amperage = 50f;
     [Header("State")]
     [SerializeField] protected bool isRunning = true;
 
-    public float VoltageKV => voltageKV;
-    public float FrequencyHz => frequencyHz;
-    public bool IsRunning => isRunning;
+    public float RatedVoltageKV   => ratedVoltageKV;
+    public float RatedFrequencyHz => ratedFrequencyHz;
+    public bool  IsRunning        => isRunning;
 
+    // ── Grid interface ───────────────────────────────────────────────────────
+    // Sealed: the isRunning check lives here, not scattered in every subclass.
+    public sealed override float GetProductionMW() =>
+        isRunning ? GetPowerOutputMW() : 0f;
 
+    // ── Subclass contract ────────────────────────────────────────────────────
     /// <summary>
-    /// Current frequency output in hz.
-    /// Every producer calculates this differently.
-    /// </summary>
-    //public abstract float GetFrequencyOutput();
-
-    /// <summary>
-    /// Current power output in MW.
-    /// Every producer calculates this differently.
+    /// Raw output while running. Do NOT check isRunning here —
+    /// GetProductionMW() already does that.
     /// </summary>
     public abstract float GetPowerOutputMW();
 
-    /// <summary>
-    /// Optional current output calculation.
-    /// </summary>
+    /// <summary>Amperage draw at rated voltage given current MW output.</summary>
     public virtual float GetCurrentAmps()
     {
-        float powerW = GetPowerOutputMW() * 1_000_000f;
-        float voltageV = voltageKV * 1_000f;
-
-        if (voltageV <= 0)
-            return 0;
-
-        return powerW / voltageV;
+        float voltageV = ratedVoltageKV * 1_000f;
+        return voltageV > 0f
+            ? (GetPowerOutputMW() * 1_000_000f) / voltageV
+            : 0f;
     }
 }
