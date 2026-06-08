@@ -7,8 +7,11 @@ public class PowerLine : MonoBehaviour
 
     private void Awake()
     {
-        if (a != null) a.connections.Add(this);
-        if (b != null) b.connections.Add(this);
+        if (a != null && !a.connections.Contains(this))
+            a.connections.Add(this);
+
+        if (b != null && !b.connections.Contains(this))
+            b.connections.Add(this);
     }
 
     public ElectricalNode GetOther(ElectricalNode node)

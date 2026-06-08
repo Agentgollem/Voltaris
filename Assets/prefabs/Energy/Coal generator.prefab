@@ -121,7 +121,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 3391104694131293415}
-  - component: {fileID: 4739699859339835870}
+  - component: {fileID: 2988378200463958061}
   m_Layer: 0
   m_Name: Coal generator
   m_TagString: Untagged
@@ -145,7 +145,7 @@ Transform:
   - {fileID: 3675154923885066183}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &4739699859339835870
+--- !u!114 &2988378200463958061
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
