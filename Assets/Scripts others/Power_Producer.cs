@@ -14,6 +14,13 @@ public abstract class EnergyProducer : MonoBehaviour
     public float FrequencyHz => frequencyHz;
     public bool IsRunning => isRunning;
 
+
+    /// <summary>
+    /// Current frequency output in hz.
+    /// Every producer calculates this differently.
+    /// </summary>
+    //public abstract float GetFrequencyOutput();
+
     /// <summary>
     /// Current power output in MW.
     /// Every producer calculates this differently.

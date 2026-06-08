@@ -1,3 +1,5 @@
+using System;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class CoalGenerator : EnergyProducer
@@ -9,18 +11,25 @@ public class CoalGenerator : EnergyProducer
     [SerializeField] private float coalStored = 100f;
     [SerializeField] private float coalConsumptionPerSecond = 1f;
 
+    float accumulator = 0f;
     private void Update()
     {
-        if (!isRunning)
-            return;
+      if (!isRunning) return;
 
-        coalStored -= coalConsumptionPerSecond * Time.deltaTime;
+      accumulator += coalConsumptionPerSecond * Time.deltaTime;
 
-        if (coalStored <= 0)
-        {
-            coalStored = 0;
-            isRunning = false;
-        }
+      if (accumulator >= 1f)
+      {
+        int amount = Mathf.FloorToInt(accumulator);
+        coalStored -= amount;
+        accumulator -= amount;
+      }
+
+      if (coalStored <= 0)
+      {
+        coalStored = 0;
+        isRunning = false;
+      }
     }
 
     public override float GetPowerOutputMW()
@@ -35,4 +44,6 @@ public class CoalGenerator : EnergyProducer
     {
         coalStored += amount;
     }
+
+
 }
