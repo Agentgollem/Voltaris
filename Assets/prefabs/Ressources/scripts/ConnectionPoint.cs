@@ -19,6 +19,24 @@ public class ConnectionPoint : MonoBehaviour
 
     public int  MaxConnections       => maxConnections;
     public bool CanAcceptConnection() => connectedLines.Count < maxConnections;
+    public List<ConnectionPoint> internalConnections = new();
+
+private void Awake()
+{
+    if (owner != null) return; // Already assigned by ElectricalNode.Awake — nothing to do
+
+    // Fallback: find the nearest ElectricalNode above us in the hierarchy.
+    // This self-heals if serialization wiped the reference or Awake order was unusual.
+    owner = GetComponentInParent<ElectricalNode>();
+
+    if (owner == null)
+        Debug.LogError(
+            $"[ConnectionPoint] '{name}' has no ElectricalNode anywhere in its parent chain. " +
+            $"It must be a child (or deeper descendant) of a GameObject that has an " +
+            $"ElectricalNode component (e.g. CoalGenerator).",
+            gameObject  // passing gameObject pings it in the Hierarchy when you click the error
+        );
+}
 
     /// <summary>
     /// True if a direct line already exists between this point and <paramref name="other"/>.

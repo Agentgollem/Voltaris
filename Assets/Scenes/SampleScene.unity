@@ -205,13 +205,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 330585543}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -2.22134, y: 1, z: -3.1845694}
+  m_LocalRotation: {x: 0.39013126, y: -0, z: -0, w: 0.9207592}
+  m_LocalPosition: {x: -2.22134, y: 5.74, z: -5.5}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 45.925, y: 0, z: 0}
 --- !u!114 &330585547
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -391,6 +391,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 1601083437103044955, guid: bb890052a6002db4bae23bf713d91215, type: 3}
+      propertyPath: m_Name
+      value: ConnectionPoint_A_line1
+      objectReference: {fileID: 0}
     - target: {fileID: 2191114006627927619, guid: bb890052a6002db4bae23bf713d91215, type: 3}
       propertyPath: m_Name
       value: Power Lines
@@ -448,6 +452,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 1601083437103044955, guid: bb890052a6002db4bae23bf713d91215, type: 3}
+      propertyPath: m_Name
+      value: ConnectionPoint_Aline2
+      objectReference: {fileID: 0}
     - target: {fileID: 2191114006627927619, guid: bb890052a6002db4bae23bf713d91215, type: 3}
       propertyPath: m_Name
       value: Power Lines (1)
@@ -651,9 +659,78 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 5425236670774300201, guid: 1bc7d746a9827144ea60c3697923e665, type: 3}
+      propertyPath: m_Name
+      value: ConnectionPoint_A_coal
+      objectReference: {fileID: 0}
     - target: {fileID: 6374612207691744835, guid: 1bc7d746a9827144ea60c3697923e665, type: 3}
       propertyPath: m_Name
       value: Coal generator
+      objectReference: {fileID: 0}
+    - target: {fileID: 8073610044939111902, guid: 1bc7d746a9827144ea60c3697923e665, type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 1bc7d746a9827144ea60c3697923e665, type: 3}
+--- !u!1001 &1838625623
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 2988378200463958061, guid: 1bc7d746a9827144ea60c3697923e665, type: 3}
+      propertyPath: maxPowerMW
+      value: 45
+      objectReference: {fileID: 0}
+    - target: {fileID: 3391104694131293415, guid: 1bc7d746a9827144ea60c3697923e665, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -6.086854
+      objectReference: {fileID: 0}
+    - target: {fileID: 3391104694131293415, guid: 1bc7d746a9827144ea60c3697923e665, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.2902999
+      objectReference: {fileID: 0}
+    - target: {fileID: 3391104694131293415, guid: 1bc7d746a9827144ea60c3697923e665, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -1.07
+      objectReference: {fileID: 0}
+    - target: {fileID: 3391104694131293415, guid: 1bc7d746a9827144ea60c3697923e665, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3391104694131293415, guid: 1bc7d746a9827144ea60c3697923e665, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3391104694131293415, guid: 1bc7d746a9827144ea60c3697923e665, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3391104694131293415, guid: 1bc7d746a9827144ea60c3697923e665, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3391104694131293415, guid: 1bc7d746a9827144ea60c3697923e665, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3391104694131293415, guid: 1bc7d746a9827144ea60c3697923e665, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3391104694131293415, guid: 1bc7d746a9827144ea60c3697923e665, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6374612207691744835, guid: 1bc7d746a9827144ea60c3697923e665, type: 3}
+      propertyPath: m_Name
+      value: Coal generator (1)
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -707,7 +784,7 @@ Transform:
   m_GameObject: {fileID: 2044277848}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -4.94, y: 0, z: 6.3}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -771,7 +848,7 @@ LineRenderer:
       m_Curve:
       - serializedVersion: 3
         time: 0
-        value: 1
+        value: 0.5220127
         inSlope: 0
         outSlope: 0
         tangentMode: 0
@@ -833,3 +910,4 @@ SceneRoots:
   - {fileID: 707144797}
   - {fileID: 330585546}
   - {fileID: 2044277850}
+  - {fileID: 1838625623}

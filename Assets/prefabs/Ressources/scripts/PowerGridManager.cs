@@ -108,46 +108,80 @@ public class PowerGridManager : MonoBehaviour
     /// BFS flood-fill across the ConnectionPoint graph to find all isolated
     /// electrical islands and wrap them in PowerNetwork objects.
     /// </summary>
-    void RebuildNetworks()
+void RebuildNetworks()
+{
+    networks.Clear();
+
+    HashSet<ConnectionPoint> visitedPoints = new();
+
+    foreach (var node in allNodes)
     {
-        networks.Clear();
-        var visited = new HashSet<ElectricalNode>();
+        if (node == null)
+            continue;
 
-        foreach (var startNode in allNodes)
+        foreach (var startPoint in node.connectionPoints)
         {
-            if (startNode == null || visited.Contains(startNode)) continue;
+            if (startPoint == null)
+                continue;
 
-            var island = new List<ElectricalNode>();
-            var queue  = new Queue<ElectricalNode>();
+            if (visitedPoints.Contains(startPoint))
+                continue;
 
-            queue.Enqueue(startNode);
-            visited.Add(startNode);
+            HashSet<ElectricalNode> networkNodes = new();
+            Queue<ConnectionPoint> queue = new();
+
+            queue.Enqueue(startPoint);
+            visitedPoints.Add(startPoint);
 
             while (queue.Count > 0)
             {
-                var current = queue.Dequeue();
-                island.Add(current);
+                ConnectionPoint currentPoint = queue.Dequeue();
 
-                foreach (var cp in current.connectionPoints)
+                if (currentPoint.owner != null)
+                    networkNodes.Add(currentPoint.owner);
+
+                //
+                // Follow power lines
+                //
+                foreach (var line in currentPoint.connectedLines)
                 {
-                    if (cp == null) continue;
+                    if (line == null)
+                        continue;
 
-                    foreach (var line in cp.connectedLines)
-                    {
-                        if (line == null) continue;
+                    ConnectionPoint otherPoint =
+                        line.GetOther(currentPoint);
 
-                        var neighbor = line.GetOther(cp)?.owner;
+                    if (otherPoint == null)
+                        continue;
 
-                        // visited.Add returns false if already present (HashSet)
-                        if (neighbor != null && visited.Add(neighbor))
-                            queue.Enqueue(neighbor);
-                    }
+                    if (visitedPoints.Add(otherPoint))
+                        queue.Enqueue(otherPoint);
+                }
+
+                //
+                // Follow explicit internal connections
+                //
+                foreach (var internalPoint in currentPoint.internalConnections)
+                {
+                    if (internalPoint == null)
+                        continue;
+
+                    if (visitedPoints.Add(internalPoint))
+                        queue.Enqueue(internalPoint);
                 }
             }
 
-            networks.Add(new PowerNetwork(island));
+            if (networkNodes.Count > 0)
+            {
+                networks.Add(
+                    new PowerNetwork(
+                        new List<ElectricalNode>(networkNodes)
+                    )
+                );
+            }
         }
     }
+}
 
     // ── Simulation ────────────────────────────────────────────────────────────
 

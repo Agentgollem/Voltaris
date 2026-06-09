@@ -11,7 +11,7 @@ using UnityEngine;
 ///   4. OnDestroy() cleans up both endpoints and the grid registry
 /// </summary>
 [RequireComponent(typeof(LineRenderer))]
-public class PowerLine : MonoBehaviour
+    public class PowerLine : MonoBehaviour
 {
     [Header("Endpoints (set by Initialize)")]
     public ConnectionPoint startPoint;

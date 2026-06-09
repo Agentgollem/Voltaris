@@ -115,43 +115,65 @@ public class WirePlacementTool : MonoBehaviour
     }
 
     // ── Wire creation ─────────────────────────────────────────────────────────
-
-    void TryCreateWire(ConnectionPoint a, ConnectionPoint b)
+void TryCreateWire(ConnectionPoint a, ConnectionPoint b)
+{
+    // Catch the most common setup mistake immediately with a clear message
+    if (a.owner == null)
     {
-        if (!a.CanAcceptConnection())
-        {
-            Debug.LogWarning($"[WirePlacementTool] {a.owner.name}/{a.name} is at max " +
-                             $"connections ({a.MaxConnections}).");
-            return;
-        }
-
-        if (!b.CanAcceptConnection())
-        {
-            Debug.LogWarning($"[WirePlacementTool] {b.owner.name}/{b.name} is at max " +
-                             $"connections ({b.MaxConnections}).");
-            return;
-        }
-
-        if (a.IsConnectedTo(b))
-        {
-            Debug.LogWarning("[WirePlacementTool] These points are already connected.");
-            return;
-        }
-
-        // Instantiate from prefab if provided; otherwise build dynamically.
-        // AddComponent<PowerLine>() respects [RequireComponent(LineRenderer)] and
-        // will not add a duplicate if one already exists on the object.
-        var wireObj = wireLinePrefab != null
-            ? Instantiate(wireLinePrefab)
-            : new GameObject("PowerLine");
-
-        var line = wireObj.GetComponent<PowerLine>()
-                ?? wireObj.AddComponent<PowerLine>();
-
-        line.Initialize(a, b);
-
-        Debug.Log($"[WirePlacementTool] {a.owner.name}/{a.name} → {b.owner.name}/{b.name}");
+        Debug.LogError($"[WirePlacementTool] ConnectionPoint '{a.name}' has no owner. " +
+                       "Make sure it is a child GameObject of an ElectricalNode.");
+        return;
     }
+    if (b.owner == null)
+    {
+        Debug.LogError($"[WirePlacementTool] ConnectionPoint '{b.name}' has no owner. " +
+                       "Make sure it is a child GameObject of an ElectricalNode.");
+        return;
+    }
+
+    if (!a.CanAcceptConnection())
+    {
+        Debug.LogWarning($"[WirePlacementTool] {a.owner.name}/{a.name} is at max " +
+                         $"connections ({a.MaxConnections}).");
+        return;
+    }
+
+    if (!b.CanAcceptConnection())
+    {
+        Debug.LogWarning($"[WirePlacementTool] {b.owner.name}/{b.name} is at max " +
+                         $"connections ({b.MaxConnections}).");
+        return;
+    }
+
+    if (a.IsConnectedTo(b))
+    {
+        Debug.LogWarning("[WirePlacementTool] These points are already connected.");
+        return;
+    }
+    if (a.owner is EnergyProducer && b.owner is EnergyProducer)
+    {
+        Debug.LogWarning($"[WirePlacementTool] {a.owner.name} is an energy producer trying to connect to {b.owner.name} also an energy procuer");
+        return;
+    }
+
+    var wireObj = wireLinePrefab != null
+        ? Instantiate(wireLinePrefab)
+        : new GameObject("PowerLine");
+
+    var line = wireObj.GetComponent<PowerLine>()
+            ?? wireObj.AddComponent<PowerLine>();
+
+    if (line == null)
+    {
+        Debug.LogError("[WirePlacementTool] Failed to get or add PowerLine component.");
+        Destroy(wireObj);
+        return;
+    }
+
+    line.Initialize(a, b);
+
+    Debug.Log($"[WirePlacementTool] Wire created: {a.owner.name}/{a.name} → {b.owner.name}/{b.name}");
+}
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -165,18 +187,32 @@ public class WirePlacementTool : MonoBehaviour
     }
 
     ConnectionPoint GetPointUnderMouse()
+{
+    if (cam == null) return null;
+
+    Ray ray = cam.ScreenPointToRay(Mouse.current.position.ReadValue());
+
+    if (!Physics.Raycast(ray, out RaycastHit hit, 100f, connectionPointMask))
+        return null;
+
+    // Only accept a direct hit on a ConnectionPoint collider.
+    // Removed GetComponentInParent — that walked up into parent building colliders
+    // and returned points that had nothing to do with where the user actually clicked.
+    var point = hit.collider.GetComponent<ConnectionPoint>();
+
+    if (point != null && point.owner == null)
     {
-        if (cam == null) return null;
-
-        Ray ray = cam.ScreenPointToRay(Mouse.current.position.ReadValue());
-
-        if (!Physics.Raycast(ray, out RaycastHit hit, 100f, connectionPointMask))
-            return null;
-
-        // Check the hit collider first, then walk up the hierarchy once.
-        return hit.collider.GetComponent<ConnectionPoint>()
-            ?? hit.collider.GetComponentInParent<ConnectionPoint>();
+        // Self-heal should have run already; if owner is still null the hierarchy is wrong.
+        Debug.LogError(
+            $"[WirePlacementTool] '{point.name}' was hit but its owner is still null after " +
+            $"Awake. Make sure it is parented under a GameObject with an ElectricalNode component.",
+            point.gameObject
+        );
+        return null; // Don't hand back a broken point
     }
+
+    return point;
+}
 
     /// <summary>
     /// Returns the world position under the mouse cursor.
