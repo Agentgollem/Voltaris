@@ -240,8 +240,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ConnectionPoint
   owner: {fileID: 0}
-  maxConnections: 4
+  maxConnections: 2
   connectedLines: []
+  internalConnections: []
 --- !u!1 &2191114006627927619
 GameObject:
   m_ObjectHideFlags: 0
@@ -545,3 +546,4 @@ MonoBehaviour:
   owner: {fileID: 0}
   maxConnections: 4
   connectedLines: []
+  internalConnections: []
