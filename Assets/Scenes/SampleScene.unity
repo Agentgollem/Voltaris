@@ -713,6 +713,8 @@ MonoBehaviour:
   minZoom: 15
   maxZoom: 80
   edgeSize: 15
+  target: {fileID: 1536814273}
+  distance: 10
 --- !u!4 &1536814273
 Transform:
   m_ObjectHideFlags: 0
@@ -721,14 +723,14 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1536814271}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 3.13097, y: 0, z: 4.60458}
+  m_LocalRotation: {x: -0, y: -0.10098846, z: -0, w: 0.9948876}
+  m_LocalPosition: {x: 0.2607174, y: 0, z: 5.3998356}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 330585546}
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: -11.592, z: 0}
 --- !u!1001 &1838625623
 PrefabInstance:
   m_ObjectHideFlags: 0

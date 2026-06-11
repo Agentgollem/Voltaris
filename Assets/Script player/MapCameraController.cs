@@ -25,6 +25,10 @@ public class MapCameraController : MonoBehaviour
 
     private bool dragging;
   private Vector2 lastMousePos;
+
+
+private float yaw;
+
     private void Awake()
     {
         controls = new CameraControls();
@@ -135,29 +139,26 @@ public class MapCameraController : MonoBehaviour
 
         zoomInput = 0;
     }
-private float currentYaw;
 
 private void HandleRotate()
 {
     float rotateInput = controls.Camera.Rotate.ReadValue<float>();
 
-    currentYaw += rotateInput * rotationSpeed * Time.deltaTime;
+    if (Mathf.Abs(rotateInput) < 0.01f)
+        return;
 
-    transform.rotation = Quaternion.Euler(0f, currentYaw, 0f);
+    Ray ray = cam.ViewportPointToRay(new Vector3(0.5f, 0.5f));
+
+    if (Physics.Raycast(ray, out RaycastHit hit))
+    {
+        float angle = rotateInput * rotationSpeed * Time.deltaTime;
+
+        transform.RotateAround(
+            hit.point,
+            Vector3.up,
+            angle
+        );
+    }
 }
 
-private void ApplyAzertyBindings()
-{
-    var move = controls.Camera.Move;
-
-    move.ApplyBindingOverride(1, "<Keyboard>/z"); // up
-    move.ApplyBindingOverride(2, "<Keyboard>/s"); // down
-    move.ApplyBindingOverride(3, "<Keyboard>/q"); // left
-    move.ApplyBindingOverride(4, "<Keyboard>/d"); // right
-
-    var rotate = controls.Camera.Rotate;
-
-    rotate.ApplyBindingOverride(1, "<Keyboard>/a"); // negative
-    rotate.ApplyBindingOverride(2, "<Keyboard>/e"); // positive
-}
 }
