@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 2526738475222632913}
   - component: {fileID: 3670296756996069025}
   - component: {fileID: 8073610044939111902}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: model
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -125,7 +125,7 @@ GameObject:
   - component: {fileID: 7657935071795723418}
   - component: {fileID: 8047129767447980390}
   - component: {fileID: 842231356216434292}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: ConnectionPoint_A
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -240,6 +240,7 @@ MonoBehaviour:
   owner: {fileID: 0}
   maxConnections: 4
   connectedLines: []
+  internalConnections: []
 --- !u!1 &6374612207691744835
 GameObject:
   m_ObjectHideFlags: 0
@@ -250,7 +251,7 @@ GameObject:
   m_Component:
   - component: {fileID: 3391104694131293415}
   - component: {fileID: 2988378200463958061}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Coal generator
   m_TagString: Untagged
   m_Icon: {fileID: 0}

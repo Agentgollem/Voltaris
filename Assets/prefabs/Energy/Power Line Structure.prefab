@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 3699517794597725676}
   - component: {fileID: 438257606082046771}
   - component: {fileID: 820228291405973836}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: model
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -127,7 +127,7 @@ GameObject:
   - component: {fileID: 4106807948037408982}
   - component: {fileID: 3069710249908617993}
   - component: {fileID: 766314886554283570}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: ConnectionPoint_A
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -255,7 +255,7 @@ GameObject:
   - component: {fileID: 6489715536980442953}
   - component: {fileID: 2145747403686125662}
   - component: {fileID: 6360924646598517925}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Power Line Structure
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -431,7 +431,7 @@ GameObject:
   - component: {fileID: 7176193912891656181}
   - component: {fileID: 6918059479942590837}
   - component: {fileID: 6480691735925025768}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: ConnectionPoint_B
   m_TagString: Untagged
   m_Icon: {fileID: 0}

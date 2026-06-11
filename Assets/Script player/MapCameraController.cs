@@ -3,6 +3,7 @@ using UnityEngine.InputSystem;
 
 public class MapCameraController : MonoBehaviour
 {
+    [SerializeField] private LayerMask Ground = ~0;
     [SerializeField] private bool useAzerty = true;
     [Header("Movement")]
     [SerializeField] private float moveSpeed = 30f;
@@ -59,7 +60,7 @@ private float yaw;
     private void Update()
     {
         HandleKeyboardMovement();
-        HandleEdgeScroll();
+        //HandleEdgeScroll();
         HandleZoom();
         HandleDrag();
         HandleRotate();
@@ -149,7 +150,7 @@ private void HandleRotate()
 
     Ray ray = cam.ViewportPointToRay(new Vector3(0.5f, 0.5f));
 
-    if (Physics.Raycast(ray, out RaycastHit hit))
+    if (Physics.Raycast(ray, out RaycastHit hit,1000f,Ground))
     {
         float angle = rotateInput * rotationSpeed * Time.deltaTime;
 

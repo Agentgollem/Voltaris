@@ -705,6 +705,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 44067e7ea29302d469bc246709853ddd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MapCameraController
+  Ground:
+    serializedVersion: 2
+    m_Bits: 128
   useAzerty: 1
   moveSpeed: 30
   rotationSpeed: 90
@@ -713,8 +716,6 @@ MonoBehaviour:
   minZoom: 15
   maxZoom: 80
   edgeSize: 15
-  target: {fileID: 1536814273}
-  distance: 10
 --- !u!4 &1536814273
 Transform:
   m_ObjectHideFlags: 0
@@ -804,8 +805,8 @@ GameObject:
   - component: {fileID: 1920012699}
   - component: {fileID: 1920012698}
   - component: {fileID: 1920012697}
-  m_Layer: 0
-  m_Name: rr
+  m_Layer: 7
+  m_Name: ground
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
