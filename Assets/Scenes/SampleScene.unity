@@ -391,6 +391,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 766314886554283570, guid: bb890052a6002db4bae23bf713d91215, type: 3}
+      propertyPath: maxConnections
+      value: 4
+      objectReference: {fileID: 0}
     - target: {fileID: 1601083437103044955, guid: bb890052a6002db4bae23bf713d91215, type: 3}
       propertyPath: m_Name
       value: ConnectionPoint_A_line1

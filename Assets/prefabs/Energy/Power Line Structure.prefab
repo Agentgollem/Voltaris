@@ -240,7 +240,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ConnectionPoint
   owner: {fileID: 0}
-  maxConnections: 2
+  maxConnections: 4
   connectedLines: []
   internalConnections: []
 --- !u!1 &2191114006627927619
