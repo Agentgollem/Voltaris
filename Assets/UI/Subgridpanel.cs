@@ -309,7 +309,7 @@ public class SubgridPanel : MonoBehaviour
 
     public void BeginDrag(PointerEventData e)
     {
-        Debug.Log("Begin Drag");
+        //Debug.Log("Begin Drag");
         if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
                 rt.parent as RectTransform,
                 e.position,
@@ -322,7 +322,7 @@ public class SubgridPanel : MonoBehaviour
 
     public void Drag(PointerEventData e)
     {
-        Debug.Log("Dragging");
+        //Debug.Log("Dragging");
         if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
                 rt.parent as RectTransform,
                 e.position,
@@ -375,25 +375,78 @@ public class SubgridPanel : MonoBehaviour
 
     static Canvas GetOrCreateCanvas()
     {
-        var canvas = FindObjectOfType<Canvas>();
-        if (canvas != null) return canvas;
+        // Reuse our dedicated panel canvas if it already exists
+        const string CanvasName = "VoltarisUICanvas";
+        var found = GameObject.Find(CanvasName);
+        if (found != null)
+        {
+            var cv = found.GetComponent<Canvas>();
+            if (cv != null) return cv;
+        }
 
-        var go = new GameObject("VoltarisUICanvas");
-        var cv = go.AddComponent<Canvas>();
-        cv.renderMode = RenderMode.ScreenSpaceOverlay;
-        cv.sortingOrder = 50;
+        // Create a fresh panel canvas with all required components
+        var go = new GameObject(CanvasName);
+        var canvas = go.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = 100;   // above any existing HUD canvases
+
         var scaler = go.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920, 1080);
+
         go.AddComponent<GraphicRaycaster>();
 
-        if (FindObjectOfType<EventSystem>() == null)
+        EnsureEventSystem();
+
+        return canvas;
+    }
+    /*
+        static void EnsureEventSystem()
         {
+            if (FindObjectOfType<EventSystem>() != null) return;
+
             var esGO = new GameObject("EventSystem");
             esGO.AddComponent<EventSystem>();
-            esGO.AddComponent<StandaloneInputModule>();
+
+            // Pick the right input module based on what the project is configured to use.
+            // ENABLE_INPUT_SYSTEM  = New Input System package is installed
+            // ENABLE_LEGACY_INPUT_MANAGER = old Input Manager is still active
+            // If only New Input System is active, StandaloneInputModule does nothing.
+    #if ENABLE_INPUT_SYSTEM && !ENABLE_LEGACY_INPUT_MANAGER
+            esGO.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
+    #else
+        esGO.AddComponent<StandaloneInputModule>();
+    #endif
+
+
         }
-        return cv;
+    */
+
+    static void EnsureEventSystem()
+    {
+        var es = FindObjectOfType<EventSystem>();
+        if (es == null)
+        {
+            var esGO = new GameObject("EventSystem");
+            es = esGO.AddComponent<EventSystem>();
+#if ENABLE_INPUT_SYSTEM && !ENABLE_LEGACY_INPUT_MANAGER
+            esGO.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
+#else
+        esGO.AddComponent<StandaloneInputModule>();
+#endif
+            return;
+        }
+
+#if ENABLE_INPUT_SYSTEM && !ENABLE_LEGACY_INPUT_MANAGER
+        // Existing EventSystem: swap StandaloneInputModule → InputSystemUIInputModule if needed
+        var legacy = es.GetComponent<StandaloneInputModule>();
+        if (legacy != null && es.GetComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>() == null)
+        {
+            UnityEngine.Object.Destroy(legacy);
+            es.gameObject.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
+            Debug.Log("[VoltarisUI] Replaced StandaloneInputModule with InputSystemUIInputModule");
+        }
+#endif
     }
 }
 
@@ -401,9 +454,24 @@ public class SubgridPanel : MonoBehaviour
 /// Placed on the header Image. Forwards drag events to the panel.
 /// Only the header is draggable — not the whole panel.
 /// </summary>
-public class HeaderDragHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
+// ADD IPointerDownHandler — empty body is intentional.
+// Without it, child Button components claim the pointer and drag never initiates.
+public class HeaderDragHandler : MonoBehaviour, IPointerDownHandler, IBeginDragHandler, IDragHandler
 {
     public SubgridPanel panel;
-    public void OnBeginDrag(PointerEventData e) => panel?.BeginDrag(e);
+
+    public void OnPointerDown(PointerEventData e)
+    {
+        // If this never prints → EventSystem/GraphicRaycaster not reaching the header
+        //Debug.Log($"[Drag] PointerDown on {gameObject.name}, panel={(panel == null ? "NULL!" : "OK")}");
+    }
+
+    public void OnBeginDrag(PointerEventData e)
+    {
+        // If this never prints → drag threshold not exceeded, or pointer claimed elsewhere
+        //Debug.Log($"[Drag] BeginDrag, panel={(panel == null ? "NULL!" : "OK")}");
+        panel?.BeginDrag(e);
+    }
+
     public void OnDrag(PointerEventData e) => panel?.Drag(e);
 }
