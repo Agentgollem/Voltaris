@@ -1,47 +1,58 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Central registry and simulation engine for the electrical grid.
+/// Central registry and simulation engine.
 ///
-/// Uses a dirty flag so the BFS graph traversal only runs when the topology
-/// actually changes (node/line added or removed), not every frame.
-/// Simulation (frequency calculation) runs on a separate fixed-interval timer
-/// so it's cheap and consistent regardless of frame rate.
+/// CHANGES from previous version:
+/// - OnNetworksRebuilt event fires after every topology rebuild.
+/// - TotalProductionMW, OverallFrequencyHz, TotalCustomers aggregated every tick.
+/// - History preserved across rebuilds via historyCache (same node set → same history).
+/// - historyIntervalSeconds controls how often graph data is sampled.
 /// </summary>
 public class PowerGridManager : MonoBehaviour
 {
     public static PowerGridManager Instance { get; private set; }
 
-    [Header("Registry (modified at runtime)")]
+    [Header("Registry")]
     [SerializeField] private List<ElectricalNode> allNodes = new();
-    [SerializeField] private List<PowerLine>      allLines = new();
+    [SerializeField] private List<PowerLine> allLines = new();
 
     [Header("Simulation")]
     [SerializeField] private float tickIntervalSeconds = 0.5f;
+    [SerializeField] private float historyIntervalSeconds = 1f;
 
-    // Public read-only view; grid UI or game logic can subscribe/read from here
+    // ── Networks ──────────────────────────────────────────────────────────────
     public IReadOnlyList<PowerNetwork> Networks => networks;
     private readonly List<PowerNetwork> networks = new();
 
-    private bool  isDirty  = true;
+    /// Preserves rolling history when the same logical island survives a rebuild.
+    private readonly Dictionary<string, NetworkDataHistory> historyCache = new();
+
+    /// Fired immediately after every RebuildNetworks() call.
+    /// SubgridVisualizer subscribes to this to update overlays and panels.
+    public event Action OnNetworksRebuilt;
+
+    // ── Global aggregates (updated each simulation tick) ──────────────────────
+    public float TotalProductionMW { get; private set; }
+    public float OverallFrequencyHz { get; private set; }
+    public int TotalCustomers { get; private set; }
+
+    private bool isDirty = true;
     private float tickTimer;
+    private float historyTimer;
 
-    // ── Unity lifecycle ───────────────────────────────────────────────────────
+    // ── Unity ─────────────────────────────────────────────────────────────────
 
-    private void Awake()
+    void Awake()
     {
-        if (Instance != null && Instance != this)
-        {
-            Destroy(gameObject);
-            return;
-        }
+        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
     }
 
-    private void Update()
+    void Update()
     {
-        // Topology rebuild — only when something changed
         if (isDirty)
         {
             CleanNullRefs();
@@ -49,12 +60,19 @@ public class PowerGridManager : MonoBehaviour
             isDirty = false;
         }
 
-        // Simulation tick — independent of topology rebuilds
         tickTimer += Time.deltaTime;
         if (tickTimer >= tickIntervalSeconds)
         {
             tickTimer = 0f;
             SimulateNetworks();
+        }
+
+        historyTimer += Time.deltaTime;
+        if (historyTimer >= historyIntervalSeconds)
+        {
+            historyTimer = 0f;
+            foreach (var net in networks)
+                net.RecordHistory();
         }
     }
 
@@ -62,11 +80,7 @@ public class PowerGridManager : MonoBehaviour
 
     public void RegisterNode(ElectricalNode node)
     {
-        if (node != null && !allNodes.Contains(node))
-        {
-            allNodes.Add(node);
-            MarkDirty();
-        }
+        if (node != null && !allNodes.Contains(node)) { allNodes.Add(node); MarkDirty(); }
     }
 
     public void UnregisterNode(ElectricalNode node)
@@ -76,11 +90,7 @@ public class PowerGridManager : MonoBehaviour
 
     public void RegisterLine(PowerLine line)
     {
-        if (line != null && !allLines.Contains(line))
-        {
-            allLines.Add(line);
-            MarkDirty();
-        }
+        if (line != null && !allLines.Contains(line)) { allLines.Add(line); MarkDirty(); }
     }
 
     public void UnregisterLine(PowerLine line)
@@ -88,109 +98,99 @@ public class PowerGridManager : MonoBehaviour
         if (allLines.Remove(line)) MarkDirty();
     }
 
-    /// <summary>
-    /// Call this whenever something changes that affects power flow
-    /// (generator shuts down, consumer activates, etc.) but does NOT
-    /// change the physical wire topology.
-    /// </summary>
     public void MarkDirty() => isDirty = true;
 
     // ── Graph building ────────────────────────────────────────────────────────
 
-    /// <summary>Removes Unity-destroyed objects that left null slots in the lists.</summary>
     void CleanNullRefs()
     {
         allNodes.RemoveAll(n => n == null);
         allLines.RemoveAll(l => l == null);
     }
 
-    /// <summary>
-    /// BFS flood-fill across the ConnectionPoint graph to find all isolated
-    /// electrical islands and wrap them in PowerNetwork objects.
-    /// </summary>
-void RebuildNetworks()
-{
-    networks.Clear();
-
-    HashSet<ConnectionPoint> visitedPoints = new();
-
-    foreach (var node in allNodes)
+    void RebuildNetworks()
     {
-        if (node == null)
-            continue;
+        networks.Clear();
 
-        foreach (var startPoint in node.connectionPoints)
+        HashSet<ConnectionPoint> visitedPoints = new();
+
+        foreach (var node in allNodes)
         {
-            if (startPoint == null)
-                continue;
+            if (node == null) continue;
 
-            if (visitedPoints.Contains(startPoint))
-                continue;
-
-            HashSet<ElectricalNode> networkNodes = new();
-            Queue<ConnectionPoint> queue = new();
-
-            queue.Enqueue(startPoint);
-            visitedPoints.Add(startPoint);
-
-            while (queue.Count > 0)
+            foreach (var startPoint in node.connectionPoints)
             {
-                ConnectionPoint currentPoint = queue.Dequeue();
+                if (startPoint == null || visitedPoints.Contains(startPoint))
+                    continue;
 
-                if (currentPoint.owner != null)
-                    networkNodes.Add(currentPoint.owner);
+                var networkNodes = new HashSet<ElectricalNode>();
+                var queue = new Queue<ConnectionPoint>();
 
-                //
-                // Follow power lines
-                //
-                foreach (var line in currentPoint.connectedLines)
+                queue.Enqueue(startPoint);
+                visitedPoints.Add(startPoint);
+
+                while (queue.Count > 0)
                 {
-                    if (line == null)
-                        continue;
+                    var current = queue.Dequeue();
 
-                    ConnectionPoint otherPoint =
-                        line.GetOther(currentPoint);
+                    if (current.owner != null)
+                        networkNodes.Add(current.owner);
 
-                    if (otherPoint == null)
-                        continue;
+                    // Follow external PowerLine edges
+                    foreach (var line in current.connectedLines)
+                    {
+                        if (line == null) continue;
+                        var other = line.GetOther(current);
+                        if (other != null && visitedPoints.Add(other))
+                            queue.Enqueue(other);
+                    }
 
-                    if (visitedPoints.Add(otherPoint))
-                        queue.Enqueue(otherPoint);
+                    // Follow internal connections (e.g. PowerLineStructure)
+                    foreach (var internalCP in current.internalConnections)
+                    {
+                        if (internalCP != null && visitedPoints.Add(internalCP))
+                            queue.Enqueue(internalCP);
+                    }
                 }
 
-                //
-                // Follow explicit internal connections
-                //
-                foreach (var internalPoint in currentPoint.internalConnections)
-                {
-                    if (internalPoint == null)
-                        continue;
+                if (networkNodes.Count == 0) continue;
 
-                    if (visitedPoints.Add(internalPoint))
-                        queue.Enqueue(internalPoint);
-                }
-            }
+                var nodeList = new List<ElectricalNode>(networkNodes);
+                string id = PowerNetwork.DeriveID(nodeList);
 
-            if (networkNodes.Count > 0)
-            {
-                networks.Add(
-                    new PowerNetwork(
-                        new List<ElectricalNode>(networkNodes)
-                    )
-                );
+                // Re-attach preserved history so graphs survive wire changes
+                historyCache.TryGetValue(id, out var existingHistory);
+                var network = new PowerNetwork(nodeList, existingHistory, id);
+                historyCache[id] = network.History;
+
+                networks.Add(network);
             }
         }
+
+        OnNetworksRebuilt?.Invoke();
     }
-}
 
     // ── Simulation ────────────────────────────────────────────────────────────
 
     void SimulateNetworks()
     {
+        TotalProductionMW = 0f;
+        OverallFrequencyHz = 0f;
+        TotalCustomers = 0;
+
         foreach (var net in networks)
         {
             net.Recalculate();
-            Debug.Log(net.ToString());
+            TotalProductionMW += net.ProductionMW;
+            OverallFrequencyHz += net.FrequencyHz;
         }
+
+        OverallFrequencyHz = networks.Count > 0
+            ? OverallFrequencyHz / networks.Count
+            : PowerNetwork.NominalHz;
+
+        foreach (var node in allNodes)
+            if (node is PowerConsumer c)
+                TotalCustomers += c.CustomerCount;
     }
 }

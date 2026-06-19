@@ -64,6 +64,7 @@ private float yaw;
         HandleZoom();
         HandleDrag();
         HandleRotate();
+        //HandlePitch();
     }
     private void HandleDrag()
 {
@@ -161,5 +162,50 @@ private void HandleRotate()
         );
     }
 }
+
+    private void HandleRoll()
+    {
+        float rotateInput = controls.Camera.Rotate.ReadValue<float>();
+
+        if (Mathf.Abs(rotateInput) < 0.01f)
+            return;
+
+        Ray ray = cam.ViewportPointToRay(new Vector3(0.5f, 0.5f));
+
+        if (Physics.Raycast(ray, out RaycastHit hit, 1000f, Ground))
+        {
+            float angle = rotateInput * rotationSpeed * Time.deltaTime;
+
+            transform.RotateAround(
+                hit.point,
+                Vector3.up,
+                angle
+            );
+        }
+    }
+
+    private void HandlePitch()
+    {
+        float scroll = controls.Camera.Zoom.ReadValue<float>();
+
+        if (!Keyboard.current.leftAltKey.isPressed)
+            return;
+
+        if (Mathf.Abs(scroll) < 0.01f)
+            return;
+
+        Ray ray = cam.ViewportPointToRay(new Vector3(0.5f, 0.5f));
+
+        if (Physics.Raycast(ray, out RaycastHit hit, 1000f, Ground))
+        {
+            float angle = scroll * rotationSpeed * Time.deltaTime;
+
+            transform.RotateAround(
+                hit.point,
+                transform.right,
+                angle
+            );
+        }
+    }
 
 }
