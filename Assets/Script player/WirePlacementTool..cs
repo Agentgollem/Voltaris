@@ -72,12 +72,19 @@ public class WirePlacementTool : MonoBehaviour
     {
         if (Mouse.current == null) return;
 
-        if (Mouse.current.leftButton.wasPressedThisFrame)  OnPress();
-        if (Mouse.current.leftButton.wasReleasedThisFrame) OnRelease();
+        // Only start wiring when Shift is held
+        bool shiftHeld = Keyboard.current != null && Keyboard.current.shiftKey.isPressed;
+
+        if (shiftHeld && Mouse.current.leftButton.wasPressedThisFrame) OnPress();
+        if (Mouse.current.leftButton.wasReleasedThisFrame && isDragging) OnRelease();
 
         if (isDragging) UpdatePreview();
+        else
+        {
+            // Safety: if Shift is released while dragging, cancel the drag
+            if (!shiftHeld) ResetDrag();
+        }
     }
-
     // ── Input handlers ────────────────────────────────────────────────────────
 
     void OnPress()

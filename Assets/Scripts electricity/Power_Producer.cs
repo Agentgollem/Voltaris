@@ -1,47 +1,50 @@
 using UnityEngine;
 
-/// <summary>
-/// Base class for any node that generates electrical power.
-///
-/// KEY DESIGN: GetProductionMW() is sealed here. It applies the isRunning gate
-/// once so subclasses never have to check it themselves — they only implement
-/// GetPowerOutputMW() (raw capacity while running).
-///
-/// Before this existed, EnergyProducer.GetPowerOutputMW() was never called by
-/// the grid because PowerGridManager only knew about GetProductionMW(). That
-/// disconnect is the root cause of generators silently producing nothing.
-/// </summary>
 public abstract class EnergyProducer : ElectricalNode
 {
     [Header("Electrical Spec")]
-    [SerializeField] protected float ratedVoltageKV    = 20f;
-    [SerializeField] protected float ratedFrequencyHz  = 50f;
+    [SerializeField] protected float ratedVoltageKV = 20f;
+    [SerializeField] protected float ratedFrequencyHz = 50f;
 
     [Header("State")]
     [SerializeField] protected bool isRunning = true;
 
-    public float RatedVoltageKV   => ratedVoltageKV;
+    [Header("Pilotability")]
+    [SerializeField] protected bool pilotable = false;      // show slider in panel
+    [SerializeField] protected float currentOutputMW;        // adjustable output
+
+    public float RatedVoltageKV => ratedVoltageKV;
     public float RatedFrequencyHz => ratedFrequencyHz;
-    public bool  IsRunning        => isRunning;
+    public bool IsRunning => isRunning;
+    public bool IsPilotable => pilotable;
+    public float CurrentOutputMW => currentOutputMW;
 
-    // ── Grid interface ───────────────────────────────────────────────────────
-    // Sealed: the isRunning check lives here, not scattered in every subclass.
+    // Max capacity (defined by subclass)
+    public abstract float GetMaxPowerOutputMW();
+
+    // Grid interface – uses the adjustable field
     public sealed override float GetProductionMW() =>
-        isRunning ? GetPowerOutputMW() : 0f;
+        isRunning ? currentOutputMW : 0f;
 
-    // ── Subclass contract ────────────────────────────────────────────────────
-    /// <summary>
-    /// Raw output while running. Do NOT check isRunning here —
-    /// GetProductionMW() already does that.
-    /// </summary>
-    public abstract float GetPowerOutputMW();
-
-    /// <summary>Amperage draw at rated voltage given current MW output.</summary>
     public virtual float GetCurrentAmps()
     {
         float voltageV = ratedVoltageKV * 1_000f;
         return voltageV > 0f
-            ? (GetPowerOutputMW() * 1_000_000f) / voltageV
+            ? (currentOutputMW * 1_000_000f) / voltageV
             : 0f;
+    }
+
+    /// <summary>Adjust output between 0 and max capacity.</summary>
+    public void SetOutputMW(float mw)
+    {
+        float max = GetMaxPowerOutputMW();
+        currentOutputMW = Mathf.Clamp(mw, 0f, max);
+        PowerGridManager.Instance?.MarkDirty();
+    }
+
+    public void ToggleRunning()
+    {
+        isRunning = !isRunning;
+        PowerGridManager.Instance?.MarkDirty();
     }
 }

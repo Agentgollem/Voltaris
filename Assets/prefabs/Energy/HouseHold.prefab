@@ -12,9 +12,9 @@ GameObject:
   - component: {fileID: 2310065292358122920}
   - component: {fileID: 2627184095407855536}
   - component: {fileID: 3891502049233982635}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: model
-  m_TagString: Untagged
+  m_TagString: ElectricalNode
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -127,9 +127,9 @@ GameObject:
   - component: {fileID: 8218305068199663388}
   - component: {fileID: 214997703693129620}
   - component: {fileID: 7874280270788697265}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: ConnectionPoint
-  m_TagString: Untagged
+  m_TagString: ElectricalNode
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -253,9 +253,9 @@ GameObject:
   m_Component:
   - component: {fileID: 5565548798256775420}
   - component: {fileID: 6527614384038630298}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: HouseHold
-  m_TagString: Untagged
+  m_TagString: ElectricalNode
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -290,8 +290,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::HouseHold
   connectionPoints: []
-  demandMW: 10
+  demandMW: 40
   isActive: 1
-  customerCount: 100
-  minDemandKW: 1.5
-  maxDemandKW: 3.5
+  customerCount: 1
+  demandKW: 40000

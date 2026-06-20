@@ -21,4 +21,10 @@ public abstract class PowerConsumer : ElectricalNode
     public int CustomerCount => customerCount;
 
     public override float GetConsumptionMW() => isActive ? demandMW : 0f;
+
+    public void ToggleActive()
+    {
+        isActive = !isActive;
+        PowerGridManager.Instance?.MarkDirty();
+    }
 }

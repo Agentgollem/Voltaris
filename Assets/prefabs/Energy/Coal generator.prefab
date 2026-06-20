@@ -291,6 +291,8 @@ MonoBehaviour:
   ratedVoltageKV: 20
   ratedFrequencyHz: 50
   isRunning: 1
+  pilotable: 1
+  currentOutputMW: 0
   maxPowerMW: 100
   coalStored: 100
   coalConsumptionPerSecond: 1

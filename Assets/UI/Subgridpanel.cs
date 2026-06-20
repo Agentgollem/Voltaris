@@ -15,7 +15,7 @@ using System.Linq;
 /// GRAPH FIX: UILineGraph now uses RawImage + Texture2D instead of
 ///            MaskableGraphic, which had cross-version rendering quirks.
 /// </summary>
-public class SubgridPanel : MonoBehaviour
+public class SubgridPanel : MonoBehaviour, IDraggablePanel
 {
     private string networkID;
     private Color netColor;
@@ -553,20 +553,9 @@ public class SubgridPanel : MonoBehaviour
 // Without it, child Button components claim the pointer and drag never initiates.
 public class HeaderDragHandler : MonoBehaviour, IPointerDownHandler, IBeginDragHandler, IDragHandler
 {
-    public SubgridPanel panel;
+    public IDraggablePanel panel;
 
-    public void OnPointerDown(PointerEventData e)
-    {
-        // If this never prints → EventSystem/GraphicRaycaster not reaching the header
-        //Debug.Log($"[Drag] PointerDown on {gameObject.name}, panel={(panel == null ? "NULL!" : "OK")}");
-    }
-
-    public void OnBeginDrag(PointerEventData e)
-    {
-        // If this never prints → drag threshold not exceeded, or pointer claimed elsewhere
-        //Debug.Log($"[Drag] BeginDrag, panel={(panel == null ? "NULL!" : "OK")}");
-        panel?.BeginDrag(e);
-    }
-
+    public void OnPointerDown(PointerEventData e) { }
+    public void OnBeginDrag(PointerEventData e) => panel?.BeginDrag(e);
     public void OnDrag(PointerEventData e) => panel?.Drag(e);
 }
