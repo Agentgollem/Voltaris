@@ -13,6 +13,9 @@ using UnityEngine;
 [RequireComponent(typeof(LineRenderer))]
     public class PowerLine : MonoBehaviour
 {
+    [Header("Visual")]
+    [SerializeField] private Color wireColor = Color.white;   // default, change in inspector or via code
+
     [Header("Endpoints (set by Initialize)")]
     public ConnectionPoint startPoint;
     public ConnectionPoint endPoint;
@@ -22,13 +25,24 @@ using UnityEngine;
     public float MaxCapacityMW => maxCapacityMW;
 
     private LineRenderer lr;
-
-    // ── Initialization ───────────────────────────────────────────────────────
+    public string mergeNetworkID;   // set by WirePlacementTool to force the network ID after a merge
+                                    // ── Initialization ───────────────────────────────────────────────────────
 
     /// <summary>
     /// Call once immediately after the component is added.
     /// Registers both endpoints, sets up the renderer, and marks the grid dirty.
     /// </summary>
+
+
+
+    private void Awake()
+    {
+        lr = GetComponent<LineRenderer>();
+        // Hide the line until Initialize() is called
+        lr.positionCount = 0;
+        lr.enabled = false;
+    }
+
     public void Initialize(ConnectionPoint a, ConnectionPoint b)
     {
         if (a == null || b == null)
@@ -52,6 +66,10 @@ using UnityEngine;
         ConfigureRenderer();
         UpdateVisual();
 
+        // Now show the line
+        lr.enabled = true;
+
+
         // RegisterLine also calls MarkDirty
         PowerGridManager.Instance?.RegisterLine(this);
     }
@@ -72,15 +90,25 @@ using UnityEngine;
     }
 
     // ── Visual ───────────────────────────────────────────────────────────────
-
     void ConfigureRenderer()
     {
         lr.positionCount = 2;
         lr.useWorldSpace = true;
-        lr.startWidth    = 0.1f;
-        lr.endWidth      = 0.1f;
-        // Assign a material in the inspector or via a prefab for production use.
-        // A default material is used automatically if none is assigned.
+        lr.startWidth = 0.1f;
+        lr.endWidth = 0.1f;
+
+        // Assign a default material that shows the actual colour
+        if (lr.material == null)
+        {
+            // Use Sprites/Default shader – it renders the vertex colour as-is
+            var mat = new Material(Shader.Find("Sprites/Default"));
+            mat.color = Color.white;
+            lr.material = mat;
+        }
+
+        // Apply the colour (the material’s tint is white, so the wire will be this colour)
+        lr.startColor = wireColor;
+        lr.endColor = wireColor;
     }
 
     public void UpdateVisual()

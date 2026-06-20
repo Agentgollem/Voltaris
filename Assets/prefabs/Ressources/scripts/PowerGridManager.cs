@@ -136,7 +136,6 @@ public class PowerGridManager : MonoBehaviour
                     if (current.owner != null)
                         networkNodes.Add(current.owner);
 
-                    // Follow external PowerLine edges
                     foreach (var line in current.connectedLines)
                     {
                         if (line == null) continue;
@@ -145,7 +144,6 @@ public class PowerGridManager : MonoBehaviour
                             queue.Enqueue(other);
                     }
 
-                    // Follow internal connections (e.g. PowerLineStructure)
                     foreach (var internalCP in current.internalConnections)
                     {
                         if (internalCP != null && visitedPoints.Add(internalCP))
@@ -156,12 +154,39 @@ public class PowerGridManager : MonoBehaviour
                 if (networkNodes.Count == 0) continue;
 
                 var nodeList = new List<ElectricalNode>(networkNodes);
-                string id = PowerNetwork.DeriveID(nodeList);
 
-                // Re-attach preserved history so graphs survive wire changes
-                historyCache.TryGetValue(id, out var existingHistory);
-                var network = new PowerNetwork(nodeList, existingHistory, id);
-                historyCache[id] = network.History;
+                // ── NEW: find all PowerLine objects that belong to this component ──
+                var componentLines = new List<PowerLine>();
+                foreach (var line in allLines)
+                {
+                    if (line == null) continue;
+                    // a line belongs to this component if both endpoints' owners are in nodeList
+                    if (nodeList.Contains(line.startPoint?.owner) &&
+                        nodeList.Contains(line.endPoint?.owner))
+                    {
+                        componentLines.Add(line);
+                    }
+                }
+
+                // Determine the final network ID:
+                // If any line in this component has a mergeNetworkID, use it (preferring the only one, if multiple pick one deterministically – first found)
+                string finalID = null;
+                foreach (var line in componentLines)
+                {
+                    if (!string.IsNullOrEmpty(line.mergeNetworkID))
+                    {
+                        finalID = line.mergeNetworkID;
+                        break;   // first found wins
+                    }
+                }
+
+                if (finalID == null)
+                    finalID = PowerNetwork.DeriveID(nodeList);   // fallback to auto-derived
+
+                // Re-attach preserved history using the final ID
+                historyCache.TryGetValue(finalID, out var existingHistory);
+                var network = new PowerNetwork(nodeList, existingHistory, finalID);
+                historyCache[finalID] = network.History;   // store under the ID we are using
 
                 networks.Add(network);
             }

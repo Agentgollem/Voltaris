@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using TMPro;
-
+using System.Linq;
 /// <summary>
 /// Screen-space panel for one PowerNetwork.
 /// Fully built in code — no prefab or scene setup required.
@@ -34,6 +34,11 @@ public class SubgridPanel : MonoBehaviour
     private UILineGraph lineGraph;
     private TextMeshProUGUI graphTitle;
     private int graphMetric = 0;  // 0=Freq 1=Prod 2=Dem 3=Volt 4=Stab
+
+    // Inside SubgridPanel class, near the other private fields
+    private TextMeshProUGUI graphMinLabel;
+    private TextMeshProUGUI graphMaxLabel;
+    private TextMeshProUGUI graphCurrentLabel;
 
     // Drag
     private Vector2 dragOffset;
@@ -189,9 +194,35 @@ public class SubgridPanel : MonoBehaviour
     }
 
     // ── Graph view ────────────────────────────────────────────────────────────
+    TextMeshProUGUI CreateGraphLabel(RectTransform parent, string name, Vector2 anchor)
+    {
+        var go = new GameObject(name);
+        go.transform.SetParent(parent, false);
+        var rt = go.AddComponent<RectTransform>();
 
+        // Anchor to the left edge, at the given vertical fraction
+        rt.anchorMin = new Vector2(0, anchor.y);
+        rt.anchorMax = new Vector2(0, anchor.y);
+        rt.pivot = new Vector2(0, anchor.y);
+
+        // A small size, positioned a few pixels inside
+        rt.sizeDelta = new Vector2(60, 18);
+        rt.anchoredPosition = anchor.y > 0.5f
+            ? new Vector2(4, -12)   // top label: pull down a bit
+            : new Vector2(4, 12);   // bottom label: push up a bit
+
+        var tmp = go.AddComponent<TextMeshProUGUI>();
+        tmp.fontSize = 9;
+        tmp.color = new Color(0.65f, 0.65f, 0.7f);
+        tmp.alignment = TextAlignmentOptions.Left;
+        return tmp;
+    }
     GameObject BuildGraphView()
     {
+        // In BuildGraphView(), right after the GraphArea is created (after lineGraph setup)
+
+        // --- Add Y-axis labels ---
+
         var root = Child("GraphView", rt, Vector2.zero, new Vector2(1, 1),
                           Vector2.zero, new Vector2(0, -70));
 
@@ -224,6 +255,15 @@ public class SubgridPanel : MonoBehaviour
         var gbRT = Child("GraphArea", root, Vector2.zero, new Vector2(1, 1),
                           new Vector2(8, 8), new Vector2(-8, -54));
 
+        graphMinLabel = CreateGraphLabel(gbRT, "MinLabel", new Vector2(0, 0));   // bottom-left
+        graphMaxLabel = CreateGraphLabel(gbRT, "MaxLabel", new Vector2(0, 1));   // top-left
+        graphCurrentLabel = CreateGraphLabel(gbRT, "CurrentLabel", new Vector2(0, 1));   // still top-left anchor for creation
+        var curRT = graphCurrentLabel.rectTransform;
+        curRT.anchorMin = new Vector2(0, 0.5f);   // move anchor to vertical centre
+        curRT.anchorMax = new Vector2(0, 0.5f);
+        curRT.pivot = new Vector2(0, 0.5f);
+        curRT.anchoredPosition = new Vector2(4, 0);   // 4px from left edge, vertically centred
+
         var lgGO = new GameObject("LineGraph");
         lgGO.transform.SetParent(gbRT, false);
         // [RequireComponent(typeof(RawImage))] will auto-add RawImage
@@ -231,6 +271,11 @@ public class SubgridPanel : MonoBehaviour
         var lgRT = lgGO.GetComponent<RectTransform>();
         lgRT.anchorMin = Vector2.zero; lgRT.anchorMax = Vector2.one;
         lgRT.offsetMin = lgRT.offsetMax = Vector2.zero;
+
+        // 🠟 Bring labels to the front so they render on top of the RawImage
+        graphMinLabel.rectTransform.SetAsLastSibling();
+        graphMaxLabel.rectTransform.SetAsLastSibling();
+        graphCurrentLabel.rectTransform.SetAsLastSibling();
 
         return root.gameObject;
     }
@@ -263,6 +308,56 @@ public class SubgridPanel : MonoBehaviour
 
         if (graphTitle != null) graphTitle.text = title;
         lineGraph.SetData(d, fmin, fmax, col);
+
+        // Inside RefreshGraph(), right after lineGraph.SetData(d, fmin, fmax, col);
+
+        // Determine suffix from the metric
+        string suffix = graphMetric switch
+        {
+            0 => " Hz",   // Frequency
+            1 => " MW",   // Production
+            2 => " MW",   // Demand
+            3 => " kV",   // Voltage
+            4 => "",      // Stability (0‑1)
+            _ => ""
+        };
+
+        float dMin, dMax;
+        if (d != null && d.Length > 0)
+        {
+            // Use fixed bounds if provided, otherwise compute from the data
+            dMin = fmin ?? d.Min();
+            dMax = fmax ?? d.Max();
+
+            // Avoid zero‑range collapse (already handled in UILineGraph, but just in case)
+            if (Mathf.Approximately(dMin, dMax))
+            {
+                dMin -= 1f;
+                dMax += 1f;
+            }
+        }
+        else
+        {
+            // No data – show default range markers
+            dMin = fmin ?? 0f;
+            dMax = fmax ?? 100f;
+        }
+
+        if (graphMaxLabel != null)
+            graphMaxLabel.text = $"{dMax:F1}{suffix}";
+
+        if (graphMinLabel != null)
+            graphMinLabel.text = $"{dMin:F1}{suffix}";
+
+        if (graphCurrentLabel != null && d != null && d.Length > 0)
+        {
+            float current = d[d.Length - 1];
+            graphCurrentLabel.text = $"Now: {current:F1}{suffix}";
+        }
+        else if (graphCurrentLabel != null)
+        {
+            graphCurrentLabel.text = "Now: —";
+        }
     }
 
     // ── Per-frame update ──────────────────────────────────────────────────────
