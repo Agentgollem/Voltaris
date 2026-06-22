@@ -7,27 +7,33 @@ public class CoalGenerator : EnergyProducer
 
     [Header("Fuel")]
     [SerializeField] private float coalStored = 100f;
-    [SerializeField] private float coalConsumptionPerSecond = 1f;
+    [Tooltip("Coal consumed per second when running at 100% output.")]
+    [SerializeField] private float coalConsumptionPerSecond = 1f;   // now at full load
 
     private float accumulator;
 
     protected override void Start()
     {
         base.Start();
-        // Default to full power if not already set in Inspector
         if (currentOutputMW <= 0f) currentOutputMW = maxPowerMW;
     }
 
     private void Update()
     {
         if (!isRunning) return;
-        accumulator += coalConsumptionPerSecond * Time.deltaTime;
+
+        // Scale consumption by output fraction (0 at 0 MW, full rate at maxPowerMW)
+        float outputFraction = maxPowerMW > 0f ? Mathf.Clamp01(currentOutputMW / maxPowerMW) : 0f;
+        float burnRate = coalConsumptionPerSecond * outputFraction;
+
+        accumulator += burnRate * Time.deltaTime;
         if (accumulator >= 1f)
         {
             int units = Mathf.FloorToInt(accumulator);
             coalStored -= units;
             accumulator -= units;
         }
+
         if (coalStored <= 0f)
         {
             coalStored = 0f;

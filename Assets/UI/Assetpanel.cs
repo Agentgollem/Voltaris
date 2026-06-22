@@ -31,7 +31,7 @@ public class AssetPanel : MonoBehaviour, IDraggablePanel
 
     // Buttons (always visible, never rebuilt)
     private GameObject buttonsRoot;
-
+    private TextMeshProUGUI stepperValueText;
     // Inspected object
     private object inspectedAsset;
     private ElectricalNode inspectedNode;
@@ -45,7 +45,10 @@ public class AssetPanel : MonoBehaviour, IDraggablePanel
     private float lastRecordedMetric;
 
     // Drag
+
     private Vector2 dragOffset;
+
+    private RectTransform outputAdjustRow;
 
     // ── Factory ───────────────────────────────────────────────────────────────
     public static AssetPanel Open(object asset, Vector2 screenPos)
@@ -84,7 +87,8 @@ public class AssetPanel : MonoBehaviour, IDraggablePanel
     void Build(Vector2 screenPos, Canvas canvas)
     {
         rt = gameObject.AddComponent<RectTransform>();
-        rt.sizeDelta = new Vector2(340, 460);
+        rt.sizeDelta = new Vector2(340, 520);   // was 460
+
         rt.pivot = new Vector2(0f, 1f);
 
         if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
@@ -103,6 +107,11 @@ public class AssetPanel : MonoBehaviour, IDraggablePanel
         graphView = BuildGraphView();
         graphView.SetActive(false);
         BuildControlBar();
+
+        outputAdjustRow = Child("OutputAdjustRow", rt, new Vector2(0, 0), new Vector2(1, 0),
+                                new Vector2(8, 72), new Vector2(-8, 100));   // offMin.y 72, offMax.y 100 → height 28
+        outputAdjustRow.gameObject.AddComponent<Image>().color = new Color(0.05f, 0.06f, 0.09f);
+        outputAdjustRow.gameObject.SetActive(false);
 
         RefreshStats();
         RefreshGraph();
@@ -131,121 +140,7 @@ public class AssetPanel : MonoBehaviour, IDraggablePanel
         hRT.gameObject.AddComponent<HeaderDragHandler>().panel = this;
     }
 
-    void AddSlider(string label, float min, float max, float initial, Action<float> onChanged)
-    {
-        // Container for the whole slider row
-        var container = new GameObject("Slider_" + label);
-        container.transform.SetParent(buttonsRoot.transform, false);
-        var crt = container.AddComponent<RectTransform>();
-        crt.sizeDelta = new Vector2(220, 28);
-        container.AddComponent<LayoutElement>().preferredWidth = 220;
 
-        var hLayout = container.AddComponent<HorizontalLayoutGroup>();
-        hLayout.childControlWidth = true;
-        hLayout.childForceExpandWidth = false;
-        hLayout.spacing = 4;
-        hLayout.childAlignment = TextAnchor.MiddleLeft;
-
-        // --- Label ---
-        var lblGO = new GameObject("Label");
-        lblGO.transform.SetParent(container.transform, false);
-        var lbl = lblGO.AddComponent<TextMeshProUGUI>();
-        lbl.text = label;
-        lbl.fontSize = 8;
-        lbl.color = Color.white;
-        lbl.alignment = TextAlignmentOptions.MidlineLeft;
-        lblGO.GetComponent<RectTransform>().sizeDelta = new Vector2(50, 28);
-
-        // --- Slider ---
-        var sliderGO = new GameObject("Slider");
-        sliderGO.transform.SetParent(container.transform, false);
-        var slider = sliderGO.AddComponent<Slider>();
-        slider.minValue = min;
-        slider.maxValue = max;
-        slider.value = initial;
-        slider.wholeNumbers = false;
-        slider.direction = Slider.Direction.LeftToRight;
-        slider.interactable = true;
-        slider.transition = Selectable.Transition.ColorTint;
-
-        var colors = slider.colors;
-        colors.normalColor = Color.white;
-        colors.highlightedColor = new Color(0.9f, 0.9f, 0.9f);
-        colors.pressedColor = new Color(0.7f, 0.7f, 0.7f);
-        slider.colors = colors;
-
-        var sliderRT = sliderGO.GetComponent<RectTransform>();
-        sliderRT.sizeDelta = new Vector2(100, 20);
-
-        // Background (full width) – no raycast
-        var bgGO = new GameObject("Background");
-        bgGO.transform.SetParent(sliderGO.transform, false);
-        var bgImg = bgGO.AddComponent<Image>();
-        bgImg.color = new Color(0.1f, 0.1f, 0.15f);
-        bgImg.raycastTarget = false;
-        var bgRT = bgGO.GetComponent<RectTransform>();
-        bgRT.anchorMin = Vector2.zero; bgRT.anchorMax = Vector2.one;
-        bgRT.sizeDelta = Vector2.zero;
-
-        // Fill Area
-        var fillArea = new GameObject("Fill Area");
-        fillArea.transform.SetParent(sliderGO.transform, false);
-        var faRT = fillArea.AddComponent<RectTransform>();
-        faRT.anchorMin = new Vector2(0, 0.25f); faRT.anchorMax = new Vector2(1, 0.75f);
-        faRT.offsetMin = Vector2.zero; faRT.offsetMax = Vector2.zero;
-
-        var fillGO = new GameObject("Fill");
-        fillGO.transform.SetParent(fillArea.transform, false);
-        var fillImg = fillGO.AddComponent<Image>();
-        fillImg.color = new Color(0.2f, 0.6f, 1f);
-        fillImg.raycastTarget = false;
-        var fillRT = fillGO.GetComponent<RectTransform>();
-        fillRT.anchorMin = Vector2.zero; fillRT.anchorMax = Vector2.one;
-        fillRT.sizeDelta = Vector2.zero;
-
-        // Handle Slide Area (invisible)
-        var handleSlide = new GameObject("Handle Slide Area");
-        handleSlide.transform.SetParent(sliderGO.transform, false);
-        var hsRT = handleSlide.AddComponent<RectTransform>();
-        hsRT.anchorMin = Vector2.zero; hsRT.anchorMax = Vector2.one;
-        hsRT.sizeDelta = Vector2.zero;
-
-        // Handle (small white square)
-        var handleGO = new GameObject("Handle");
-        handleGO.transform.SetParent(handleSlide.transform, false);
-        var handleImg = handleGO.AddComponent<Image>();
-        handleImg.color = Color.white;   // raycastTarget true by default
-        var handleRT = handleGO.GetComponent<RectTransform>();
-        handleRT.anchorMin = handleRT.anchorMax = new Vector2(0.5f, 0.5f);
-        handleRT.pivot = new Vector2(0.5f, 0.5f);
-        handleRT.sizeDelta = new Vector2(12, 12);
-        handleRT.anchoredPosition = Vector2.zero;
-
-        // Link slider parts
-        slider.fillRect = fillRT;
-        slider.handleRect = handleRT;
-        slider.targetGraphic = handleImg;
-
-        // Debug: confirm value changes
-   
-        // --- Value text ---
-        var valGO = new GameObject("Value");
-        valGO.transform.SetParent(container.transform, false);
-        var valTMP = valGO.AddComponent<TextMeshProUGUI>();
-        valTMP.text = $"{initial:F1} MW";
-        valTMP.fontSize = 8;
-        valTMP.color = Color.white;
-        valTMP.alignment = TextAlignmentOptions.MidlineRight;
-
-        slider.onValueChanged.AddListener(v =>
-   {
-       // Debug.Log($"Slider value: {v}");
-       valTMP.text = $"{v:F1} MW";
-       onChanged(v);
-   });
-
-        valGO.GetComponent<RectTransform>().sizeDelta = new Vector2(50, 28);
-    }
     void TogglePin()
     {
         isPinned = !isPinned;
@@ -277,7 +172,7 @@ public class AssetPanel : MonoBehaviour, IDraggablePanel
         stRT.offsetMin = new Vector2(4, 4); stRT.offsetMax = new Vector2(-4, -4);
 
         statsText = go.AddComponent<TextMeshProUGUI>();
-        statsText.fontSize = 10;
+        statsText.fontSize = 14;
         statsText.color = new Color(0.7f, 0.7f, 0.7f);
         statsText.alignment = TextAlignmentOptions.TopLeft;
 
@@ -379,7 +274,7 @@ public class AssetPanel : MonoBehaviour, IDraggablePanel
     void BuildControlBar()
     {
         var barRT = Child("ControlBar", rt, new Vector2(0, 0), new Vector2(1, 0),
-                           new Vector2(8, 8), new Vector2(-8, 48));
+                          new Vector2(8, 8), new Vector2(-8, 64));   // 56 → 64
         barRT.gameObject.AddComponent<Image>().color = new Color(0.05f, 0.06f, 0.09f);
 
         // Use a horizontal layout group to auto-arrange buttons
@@ -440,6 +335,10 @@ public class AssetPanel : MonoBehaviour, IDraggablePanel
         }
 
         if (statsText != null) statsText.text = stats;
+        if (stepperValueText != null && inspectedNode is EnergyProducer ep2)
+        {
+            stepperValueText.text = $"{ep2.CurrentOutputMW:F1} MW";
+        }
     }
 
     // ── Refresh graph ─────────────────────────────────────────────────────────
@@ -504,6 +403,35 @@ public class AssetPanel : MonoBehaviour, IDraggablePanel
         }
     }
 
+    void CreateStepButton(GameObject parent, Func<float> getCurrent, Action<float> setCurrent,
+      float min, float max, float delta, TextMeshProUGUI valText, Action<float> onChanged)
+    {
+        var go = new GameObject(delta > 0 ? "+" : "–");
+        go.transform.SetParent(parent.transform, false);
+        var rt = go.AddComponent<RectTransform>();
+        rt.sizeDelta = new Vector2(24, 24);
+        var img = go.AddComponent<Image>();
+        img.color = new Color(0.25f, 0.28f, 0.33f);
+        var btn = go.AddComponent<Button>();
+        btn.targetGraphic = img;
+        btn.onClick.AddListener(() =>
+        {
+            float cur = getCurrent();
+            float newVal = Mathf.Clamp(cur + delta, min, max);
+            setCurrent(newVal);
+            valText.text = $"{newVal:F1} MW";
+            onChanged(newVal);
+        });
+        var t = new GameObject("T").AddComponent<TextMeshProUGUI>();
+        t.text = delta > 0 ? "+" : "–";
+        t.fontSize = 14;
+        t.color = Color.white;
+        t.alignment = TextAlignmentOptions.Center;
+        t.rectTransform.SetParent(go.transform, false);
+        t.rectTransform.anchorMin = Vector2.zero;
+        t.rectTransform.anchorMax = Vector2.one;
+        t.rectTransform.sizeDelta = Vector2.zero;
+    }
     // ── Build control buttons (called once after asset is known) ────────────
     void BuildControlButtons()
     {
@@ -517,8 +445,57 @@ public class AssetPanel : MonoBehaviour, IDraggablePanel
 
             if (ep.IsPilotable)
             {
-                AddSlider("Output MW", 0f, ep.GetMaxPowerOutputMW(), ep.CurrentOutputMW,
-                    (v) => ep.SetOutputMW(v));
+                outputAdjustRow.gameObject.SetActive(true);
+                foreach (Transform t in outputAdjustRow) Destroy(t.gameObject);
+
+                float max = ep.GetMaxPowerOutputMW();
+                float min = ep.MinOutputMW;                   // from configurable %
+                float step = ep.StepMW;                        // from configurable %
+                float cur = Mathf.Clamp(ep.CurrentOutputMW, min, max);
+
+                var row = outputAdjustRow;
+                var container = new GameObject("Stepper");
+                container.transform.SetParent(row, false);
+                RectTransform containerRT = container.AddComponent<RectTransform>();
+                containerRT.anchorMin = Vector2.zero;
+                containerRT.anchorMax = Vector2.one;
+                containerRT.sizeDelta = Vector2.zero;
+
+                var hLayout = container.AddComponent<HorizontalLayoutGroup>();
+                hLayout.childControlWidth = false;
+                hLayout.childForceExpandWidth = false;
+                hLayout.childControlHeight = false;
+                hLayout.childForceExpandHeight = true;
+                hLayout.spacing = 6;
+                hLayout.padding = new RectOffset(8, 8, 2, 2);
+                hLayout.childAlignment = TextAnchor.MiddleLeft;
+
+                // Label
+                var lbl = new GameObject("Label").AddComponent<TextMeshProUGUI>();
+                lbl.text = $"Output (±{ep.StepPercent:F0}%)";
+                lbl.fontSize = 10;
+                lbl.color = Color.white;
+                lbl.alignment = TextAlignmentOptions.MidlineLeft;
+                lbl.rectTransform.sizeDelta = new Vector2(90, 24);
+                lbl.transform.SetParent(container.transform, false);
+
+                // Value
+                var val = new GameObject("Value").AddComponent<TextMeshProUGUI>();
+                val.fontSize = 10;
+                val.color = Color.white;
+                val.alignment = TextAlignmentOptions.Center;
+                val.rectTransform.sizeDelta = new Vector2(60, 24);
+                val.transform.SetParent(container.transform, false);
+                stepperValueText = val;
+                val.text = $"{cur:F1} MW";
+
+                // Buttons
+                CreateStepButton(container, () => cur, v => cur = v, min, max, -step, val, (v) => ep.SetOutputMW(v));
+                CreateStepButton(container, () => cur, v => cur = v, min, max, +step, val, (v) => ep.SetOutputMW(v));
+            }
+            else
+            {
+                outputAdjustRow.gameObject.SetActive(false);
             }
         }
         if (inspectedNode is PowerConsumer)

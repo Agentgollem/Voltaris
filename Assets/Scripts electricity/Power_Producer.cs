@@ -13,6 +13,18 @@ public abstract class EnergyProducer : ElectricalNode
     [SerializeField] protected bool pilotable = false;      // show slider in panel
     [SerializeField] protected float currentOutputMW;        // adjustable output
 
+
+    [Header("Pilot Adjustments")]
+    [SerializeField][Range(0f, 100f)] protected float minOutputPercent = 35f;
+    [SerializeField][Range(1f, 100f)] protected float stepPercent = 5f;
+
+    public float MinOutputMW => GetMaxPowerOutputMW() * minOutputPercent / 100f;
+    public float StepMW => GetMaxPowerOutputMW() * stepPercent / 100f;
+
+    public float MinOutputPercent => minOutputPercent;
+    public float StepPercent => stepPercent;
+
+
     public float RatedVoltageKV => ratedVoltageKV;
     public float RatedFrequencyHz => ratedFrequencyHz;
     public bool IsRunning => isRunning;
