@@ -37,6 +37,7 @@ public class WirePlacementTool : MonoBehaviour
     private ConnectionPoint startPoint;
     private bool isDragging;
 
+    private ConnectionPoint hoveredPoint;
     // Fallback: intersect with the Y=0 ground plane when the mouse isn't
     // over any geometry, so the preview line never snaps to world origin.
     private static readonly Plane GroundPlane = new(Vector3.up, Vector3.zero);
@@ -71,7 +72,8 @@ public class WirePlacementTool : MonoBehaviour
     private void Update()
     {
         if (Mouse.current == null) return;
-
+        // Always detect hover for label display
+        DetectHover();
         // Only start wiring when Shift is held
         bool shiftHeld = Keyboard.current != null && Keyboard.current.shiftKey.isPressed;
 
@@ -87,6 +89,23 @@ public class WirePlacementTool : MonoBehaviour
     }
     // ── Input handlers ────────────────────────────────────────────────────────
 
+    void DetectHover()
+    {
+        var point = GetPointUnderMouse();
+
+        if (point != hoveredPoint)
+        {
+            // Hide previous
+            if (hoveredPoint != null)
+                hoveredPoint.SetLabelVisible(false);
+
+            // Show new
+            if (point != null)
+                point.SetLabelVisible(true);
+
+            hoveredPoint = point;
+        }
+    }
     void OnPress()
     {
         var point = GetPointUnderMouse();
@@ -162,6 +181,13 @@ public class WirePlacementTool : MonoBehaviour
         if (b.owner == null)
         {
             Debug.LogError($"[WirePlacementTool] ConnectionPoint '{b.name}' has no owner.");
+            return;
+        }
+        float dist = Vector3.Distance(a.transform.position, b.transform.position);
+        float maxDist = Mathf.Min(a.MaxConnectionDistance, b.MaxConnectionDistance);
+        if (dist > maxDist)
+        {
+            Debug.LogWarning($"[WirePlacementTool] Too far to connect ({dist:F1} > {maxDist:F1} m).");
             return;
         }
 

@@ -3,11 +3,11 @@ using UnityEngine;
 public class HouseHold : PowerConsumer
 {
     [Header("Household")]
-    [SerializeField]
-    private float demandKW = 2f;
+    [SerializeField] private float demandKW = 2f;
 
-    private void Awake()
+    protected override void Awake()
     {
+        base.Awake();              // ← this populates connectionPoints and sets layer
         customerCount = 1;
         demandMW = demandKW / 1000f;
     }

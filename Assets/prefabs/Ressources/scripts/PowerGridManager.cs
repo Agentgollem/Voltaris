@@ -65,6 +65,7 @@ public class PowerGridManager : MonoBehaviour
         {
             tickTimer = 0f;
             SimulateNetworks();
+            UpdateConnectionPointDisplay();
         }
 
         historyTimer += Time.deltaTime;
@@ -155,6 +156,19 @@ public class PowerGridManager : MonoBehaviour
 
                 var nodeList = new List<ElectricalNode>(networkNodes);
 
+                // Skip networks that consist solely of consumers (no producer/structure)
+                bool hasProducerOrStructure = false;
+                foreach (var n in nodeList)
+                {
+                    if (n is EnergyProducer || !(n is PowerConsumer)) // includes PowerLineStructure etc.
+                    {
+                        hasProducerOrStructure = true;
+                        break;
+                    }
+                }
+                if (!hasProducerOrStructure) continue;   // don't create a network
+
+
                 // ── NEW: find all PowerLine objects that belong to this component ──
                 var componentLines = new List<PowerLine>();
                 foreach (var line in allLines)
@@ -194,7 +208,65 @@ public class PowerGridManager : MonoBehaviour
 
         OnNetworksRebuilt?.Invoke();
     }
+    void UpdateConnectionPointDisplay()
+    {
+        // Clear all
+        foreach (var node in allNodes)
+        {
+            if (node == null) continue;
+            foreach (var cp in node.connectionPoints)
+            {
+                cp.ActualVoltageKV = 0f;
+                cp.CurrentFlowMW = 0f;
+            }
+        }
 
+        // 1. Assign voltage from network
+        foreach (var net in networks)
+        {
+            float netVoltage = net.VoltageKV;
+            foreach (var node in net.Nodes)
+            {
+                if (node == null) continue;
+                foreach (var cp in node.connectionPoints)
+                    cp.ActualVoltageKV = netVoltage;
+            }
+        }
+
+        // 2. Per‑line flow = average of the net power of the two endpoint owners
+        // 2. Per‑line flow = average of the net power of the two endpoint owners
+        foreach (var line in allLines)
+        {
+            if (line == null || line.startPoint == null || line.endPoint == null) continue;
+            if (line.startPoint.owner == null || line.endPoint.owner == null) continue;   // ← guard
+
+            float pA = Mathf.Abs(line.startPoint.owner.GetProductionMW() - line.startPoint.owner.GetConsumptionMW());
+            float pB = Mathf.Abs(line.endPoint.owner.GetProductionMW() - line.endPoint.owner.GetConsumptionMW());
+            float flow = (pA + pB) * 0.5f;
+
+            line.startPoint.CurrentFlowMW += flow;
+            line.endPoint.CurrentFlowMW += flow;
+        }
+
+        // 3. Emergency fallback – if a point still has 0 voltage but is connected to a line,
+        //    copy voltage from the other end of that line
+        foreach (var line in allLines)
+        {
+            if (line == null || line.startPoint == null || line.endPoint == null) continue;
+            if (line.startPoint.ActualVoltageKV < 0.1f && line.endPoint.ActualVoltageKV > 0.1f)
+                line.startPoint.ActualVoltageKV = line.endPoint.ActualVoltageKV;
+            else if (line.endPoint.ActualVoltageKV < 0.1f && line.startPoint.ActualVoltageKV > 0.1f)
+                line.endPoint.ActualVoltageKV = line.startPoint.ActualVoltageKV;
+        }
+
+        // 4. Update the label text
+        foreach (var node in allNodes)
+        {
+            if (node == null) continue;
+            foreach (var cp in node.connectionPoints)
+                cp.UpdateDisplay();
+        }
+    }
     // ── Simulation ────────────────────────────────────────────────────────────
 
     void SimulateNetworks()
