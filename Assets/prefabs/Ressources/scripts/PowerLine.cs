@@ -23,7 +23,8 @@ using UnityEngine;
     [Header("Capacity")]
     [SerializeField] private float maxCapacityMW = 500f;
     public float MaxCapacityMW => maxCapacityMW;
-
+    // Inside PowerLine class
+    public float CurrentFlowMW { get; set; }   // how many MW are flowing through this line
     private LineRenderer lr;
     public string mergeNetworkID;   // set by WirePlacementTool to force the network ID after a merge
                                     // ── Initialization ───────────────────────────────────────────────────────

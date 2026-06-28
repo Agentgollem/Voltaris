@@ -16,11 +16,11 @@ public abstract class ElectricalNode : MonoBehaviour
 
     protected virtual void Awake()
     {
-        // Layer assignment — warns clearly instead of silently writing layer -1
+        // Layer assignment
         int layer = LayerMask.NameToLayer("ElectricalNode");
         if (layer < 0)
             Debug.LogWarning($"[{nameof(ElectricalNode)}] Layer 'ElectricalNode' not found. " +
-                             $"Create it in Project Settings → Tags & Layers.");
+                             "Create it in Project Settings → Tags & Layers.");
         else
             gameObject.layer = layer;
 
@@ -30,16 +30,41 @@ public abstract class ElectricalNode : MonoBehaviour
 
         foreach (var cp in connectionPoints)
         {
-            // Only assign if not already set (supports manual override in editor)
             if (cp != null && cp.owner == null)
                 cp.owner = this;
         }
+
+        /*
+
+    WE DONT WANT THAT WE WANT THEM TO BE ISOLATED !!!!!!!!!!!!!!!!!!
+            // ── Auto-wire internalConnections ─────────────────────────────────
+            // Every CP on the same node must be internally connected to its
+            // siblings so the RebuildNetworks BFS visits ALL of them as a single
+            // unit the moment it reaches ANY one of them via a wire.
+            //
+            // Without this, the BFS discovers e.g. CP1 (via a wire) but never
+            // visits CP2.  The outer loop then starts a second BFS from CP2,
+            // creating a duplicate standalone network for the same node.  That
+            // duplicate network has VoltageKV = 0 and overwrites the correct
+            // values that were assigned by the first network.
+            foreach (var cp in connectionPoints)
+            {
+                if (cp == null) continue;
+                foreach (var sibling in connectionPoints)
+                {
+                    if (sibling != null && sibling != cp &&
+                        !cp.internalConnections.Contains(sibling))
+                    {
+                        cp.internalConnections.Add(sibling);
+                    }
+                }
+            }
+            */
     }
+
 
     protected virtual void Start()
     {
-        // Registration deferred to Start: all Awake() calls in the scene run
-        // before any Start(), so Instance is guaranteed to exist.
         PowerGridManager.Instance?.RegisterNode(this);
     }
 
@@ -48,9 +73,6 @@ public abstract class ElectricalNode : MonoBehaviour
         PowerGridManager.Instance?.UnregisterNode(this);
     }
 
-    /// <summary>Megawatts injected into the grid by this node.</summary>
     public virtual float GetProductionMW() => 0f;
-
-    /// <summary>Megawatts drawn from the grid by this node.</summary>
     public virtual float GetConsumptionMW() => 0f;
 }

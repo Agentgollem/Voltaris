@@ -19,7 +19,7 @@ public class ConnectionPoint : MonoBehaviour
     [SerializeField] private float maxConnectionDistance = 100f;
 
     [Header("UI")]
-    [Tooltip("Uncheck to hide the hover info label on this connection point (e.g. on household sockets).")]
+    [Tooltip("Uncheck to permanently hide the hover info label.")]
     [SerializeField] private bool showInfoLabel = true;
 
     // Runtime state (set by PowerGridManager after simulation)
@@ -41,28 +41,33 @@ public class ConnectionPoint : MonoBehaviour
 
     private void Awake()
     {
-        // Owner assignment
         if (owner == null)
         {
             owner = GetComponentInParent<ElectricalNode>();
             if (owner == null)
                 Debug.LogError($"[ConnectionPoint] '{name}' has no ElectricalNode above it.", gameObject);
         }
+    }
 
-        // Build the world-space label
+    private void Start()
+    {
+        // All Awake() calls have completed by now, so showInfoLabel is
+        // definitively set (e.g. by HouseHold.Awake → DisableInfoLabel).
+        // Don't create any objects at all when the label is suppressed.
+        if (!showInfoLabel) return;
+
         var labelGO = new GameObject("InfoLabel");
         labelGO.transform.SetParent(transform, false);
         labelGO.transform.localPosition = new Vector3(0, 1.8f, 0);
-        print(labelGO.transform == null);
         infoTransform = labelGO.transform;
 
-        // Optional dark background
         var bgGO = new GameObject("Bg");
         bgGO.transform.SetParent(labelGO.transform, false);
         var bg = bgGO.AddComponent<SpriteRenderer>();
         bg.sprite = Resources.Load<Sprite>("Sprites/WhiteSquare");
         bg.color = new Color(0, 0, 0, 0.6f);
         bg.transform.localScale = new Vector3(2.5f, 1.2f, 1f);
+        bg.transform.localPosition = Vector3.zero;
 
         infoText = labelGO.AddComponent<TextMeshPro>();
         infoText.fontSize = 3f;
@@ -70,23 +75,14 @@ public class ConnectionPoint : MonoBehaviour
         infoText.color = Color.white;
         infoText.text = "";
 
-        // Hidden until hovered (or permanently if showInfoLabel is false)
-        infoText.gameObject.SetActive(false);
-
-        Debug.Log($"[ConnectionPoint] Label created for '{name}'", gameObject);
+        infoText.gameObject.SetActive(false);   // hidden until hovered
     }
-
-    void Start() { }   // nothing needed; label starts hidden via Awake
 
     private void LateUpdate()
     {
-
         if (infoTransform == null || Camera.main == null) return;
 
         // Upright camera-facing billboard.
-        // -toCam points the label's +Z away from the camera so the text's
-        // front face (-Z for TMP world-space meshes) always faces the viewer.
-        // Vector3.up keeps the label level even when the camera tilts.
         Vector3 toCam = Camera.main.transform.position - infoTransform.position;
         if (toCam.sqrMagnitude < 0.001f) return;
         infoTransform.rotation = Quaternion.LookRotation(-toCam, Vector3.up);
@@ -94,10 +90,6 @@ public class ConnectionPoint : MonoBehaviour
 
     // ── Public API ────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Call once to permanently hide the info label on this point
-    /// (used by HouseHold so its socket doesn't show stats on hover).
-    /// </summary>
     public void DisableInfoLabel()
     {
         showInfoLabel = false;
@@ -106,16 +98,21 @@ public class ConnectionPoint : MonoBehaviour
 
     public void SetLabelVisible(bool visible)
     {
-        // Silently ignored when this point has its label suppressed.
-        if (infoText == null || !showInfoLabel) return;
+        if (infoText == null) return;
         infoText.gameObject.SetActive(visible);
     }
 
     public void UpdateDisplay()
     {
-        if (infoText == null || !showInfoLabel) return;
+        if (infoText == null) return;
 
-        string flow = $"{CurrentFlowMW:F1} MW";
+        // Sign convention (matches PowerGridManager assignment):
+        //   + value  → producer (injecting into grid)
+        //   - value  → consumer (drawing from grid)
+        //   ± net    → infrastructure (grid balance = production - consumption)
+        //
+        // "+0.0;-0.0;0.0" always shows an explicit sign on non-zero values.
+        string flow = $"{CurrentFlowMW:+0.0;-0.0;0.0} MW";
         string volt = $"{ActualVoltageKV:F1} kV";
         string max = $"Max {maxPowerMW:F0} MW / {nominalVoltageKV:F0} kV";
         infoText.text = $"{flow}\n{volt}\n<size=70%>{max}</size>";

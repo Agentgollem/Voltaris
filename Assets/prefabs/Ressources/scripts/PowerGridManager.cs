@@ -2,15 +2,6 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>
-/// Central registry and simulation engine.
-///
-/// CHANGES from previous version:
-/// - OnNetworksRebuilt event fires after every topology rebuild.
-/// - TotalProductionMW, OverallFrequencyHz, TotalCustomers aggregated every tick.
-/// - History preserved across rebuilds via historyCache (same node set → same history).
-/// - historyIntervalSeconds controls how often graph data is sampled.
-/// </summary>
 public class PowerGridManager : MonoBehaviour
 {
     public static PowerGridManager Instance { get; private set; }
@@ -23,18 +14,20 @@ public class PowerGridManager : MonoBehaviour
     [SerializeField] private float tickIntervalSeconds = 0.5f;
     [SerializeField] private float historyIntervalSeconds = 1f;
 
-    // ── Networks ──────────────────────────────────────────────────────────────
     public IReadOnlyList<PowerNetwork> Networks => networks;
     private readonly List<PowerNetwork> networks = new();
-
-    /// Preserves rolling history when the same logical island survives a rebuild.
     private readonly Dictionary<string, NetworkDataHistory> historyCache = new();
 
-    /// Fired immediately after every RebuildNetworks() call.
-    /// SubgridVisualizer subscribes to this to update overlays and panels.
+    /// <summary>
+    /// Maps each ConnectionPoint to the network component it was discovered in.
+    /// This is the key to per-CP independence: Tower.CP1 and Tower.CP2 can be
+    /// in different networks (different voltages/grids) simultaneously, because
+    /// we track which BFS run found each CP rather than which node owns it.
+    /// </summary>
+    private readonly Dictionary<ConnectionPoint, PowerNetwork> cpNetworkMap = new();
+
     public event Action OnNetworksRebuilt;
 
-    // ── Global aggregates (updated each simulation tick) ──────────────────────
     public float TotalProductionMW { get; private set; }
     public float OverallFrequencyHz { get; private set; }
     public int TotalCustomers { get; private set; }
@@ -57,6 +50,9 @@ public class PowerGridManager : MonoBehaviour
         {
             CleanNullRefs();
             RebuildNetworks();
+            SimulateNetworks();
+            UpdateConnectionPointDisplay();
+            tickTimer = 0f;
             isDirty = false;
         }
 
@@ -112,8 +108,9 @@ public class PowerGridManager : MonoBehaviour
     void RebuildNetworks()
     {
         networks.Clear();
+        cpNetworkMap.Clear();
 
-        HashSet<ConnectionPoint> visitedPoints = new();
+        var visitedPoints = new HashSet<ConnectionPoint>();
 
         foreach (var node in allNodes)
         {
@@ -125,10 +122,14 @@ public class PowerGridManager : MonoBehaviour
                     continue;
 
                 var networkNodes = new HashSet<ElectricalNode>();
+                // Track exactly which CPs belong to this BFS component so we
+                // can assign them to the right network in cpNetworkMap later.
+                var componentCPs = new HashSet<ConnectionPoint>();
                 var queue = new Queue<ConnectionPoint>();
 
-                queue.Enqueue(startPoint);
                 visitedPoints.Add(startPoint);
+                componentCPs.Add(startPoint);
+                queue.Enqueue(startPoint);
 
                 while (queue.Count > 0)
                 {
@@ -142,13 +143,19 @@ public class PowerGridManager : MonoBehaviour
                         if (line == null) continue;
                         var other = line.GetOther(current);
                         if (other != null && visitedPoints.Add(other))
+                        {
                             queue.Enqueue(other);
+                            componentCPs.Add(other);
+                        }
                     }
 
                     foreach (var internalCP in current.internalConnections)
                     {
                         if (internalCP != null && visitedPoints.Add(internalCP))
+                        {
                             queue.Enqueue(internalCP);
+                            componentCPs.Add(internalCP);
+                        }
                     }
                 }
 
@@ -156,61 +163,59 @@ public class PowerGridManager : MonoBehaviour
 
                 var nodeList = new List<ElectricalNode>(networkNodes);
 
-                // Skip networks that consist solely of consumers (no producer/structure)
                 bool hasProducerOrStructure = false;
                 foreach (var n in nodeList)
                 {
-                    if (n is EnergyProducer || !(n is PowerConsumer)) // includes PowerLineStructure etc.
+                    if (n is EnergyProducer || !(n is PowerConsumer))
                     {
                         hasProducerOrStructure = true;
                         break;
                     }
                 }
-                if (!hasProducerOrStructure) continue;   // don't create a network
+                if (!hasProducerOrStructure) continue;
 
-
-                // ── NEW: find all PowerLine objects that belong to this component ──
                 var componentLines = new List<PowerLine>();
                 foreach (var line in allLines)
                 {
                     if (line == null) continue;
-                    // a line belongs to this component if both endpoints' owners are in nodeList
                     if (nodeList.Contains(line.startPoint?.owner) &&
                         nodeList.Contains(line.endPoint?.owner))
-                    {
                         componentLines.Add(line);
-                    }
                 }
 
-                // Determine the final network ID:
-                // If any line in this component has a mergeNetworkID, use it (preferring the only one, if multiple pick one deterministically – first found)
                 string finalID = null;
                 foreach (var line in componentLines)
                 {
                     if (!string.IsNullOrEmpty(line.mergeNetworkID))
                     {
                         finalID = line.mergeNetworkID;
-                        break;   // first found wins
+                        break;
                     }
                 }
-
                 if (finalID == null)
-                    finalID = PowerNetwork.DeriveID(nodeList);   // fallback to auto-derived
+                    finalID = PowerNetwork.DeriveID(nodeList);
 
-                // Re-attach preserved history using the final ID
                 historyCache.TryGetValue(finalID, out var existingHistory);
                 var network = new PowerNetwork(nodeList, existingHistory, finalID);
-                historyCache[finalID] = network.History;   // store under the ID we are using
-
+                historyCache[finalID] = network.History;
                 networks.Add(network);
+
+                // Register every CP discovered in this run → this network.
+                // Because we use per-CP mapping (not per-node), Tower.CP1
+                // and Tower.CP2 can legally point to different networks.
+                foreach (var cp in componentCPs)
+                    cpNetworkMap[cp] = network;
             }
         }
 
         OnNetworksRebuilt?.Invoke();
     }
+
+    // ── Connection-point display ──────────────────────────────────────────────
+
     void UpdateConnectionPointDisplay()
     {
-        // Clear all
+        // 0. Reset everything.
         foreach (var node in allNodes)
         {
             if (node == null) continue;
@@ -221,45 +226,48 @@ public class PowerGridManager : MonoBehaviour
             }
         }
 
-        // 1. Assign voltage from network
-        foreach (var net in networks)
+        // 1. Voltage per-CP from its own BFS component.
+        //    Using cpNetworkMap means a tower whose CP1 is in a 20 kV grid and
+        //    CP2 is in an isolated segment correctly shows 20 kV / 0 kV.
+        foreach (var kvp in cpNetworkMap)
+            kvp.Key.ActualVoltageKV = kvp.Value.VoltageKV;
+
+        // 2. Flow per node/CP, with sign.
+        //
+        //   • EnergyProducer → +production MW  (injecting into grid)
+        //   • PowerConsumer  → -consumption MW  (drawing from grid)
+        //   • Infrastructure → signed sum of net power from each connected segment.
+        //       SumNetPowerFrom(otherCP, line) returns production-consumption of
+        //       everything reachable from the far end of that line, preserving the
+        //       sign.  A household-only segment returns −40 MW; a coal plant
+        //       segment returns +45 MW.  Summing them gives the net flow seen by
+        //       that individual connection point.
+        foreach (var node in allNodes)
         {
-            float netVoltage = net.VoltageKV;
-            foreach (var node in net.Nodes)
+            if (node == null) continue;
+
+            foreach (var cp in node.connectionPoints)
             {
-                if (node == null) continue;
-                foreach (var cp in node.connectionPoints)
-                    cp.ActualVoltageKV = netVoltage;
+                if (node is EnergyProducer ep)
+                {
+                    cp.CurrentFlowMW = ep.GetProductionMW();
+                }
+                else if (node is PowerConsumer pc)
+                {
+                    cp.CurrentFlowMW = -pc.GetConsumptionMW();
+                }
+                else
+                {
+                    // Pass‑through node: show the net surplus of the whole electrical island
+                    if (cpNetworkMap.TryGetValue(cp, out var net))
+                        cp.CurrentFlowMW = net.ProductionMW - net.ConsumptionMW;
+                    else
+                        cp.CurrentFlowMW = 0f;
+                }
             }
         }
 
-        // 2. Per‑line flow = average of the net power of the two endpoint owners
-        // 2. Per‑line flow = average of the net power of the two endpoint owners
-        foreach (var line in allLines)
-        {
-            if (line == null || line.startPoint == null || line.endPoint == null) continue;
-            if (line.startPoint.owner == null || line.endPoint.owner == null) continue;   // ← guard
-
-            float pA = Mathf.Abs(line.startPoint.owner.GetProductionMW() - line.startPoint.owner.GetConsumptionMW());
-            float pB = Mathf.Abs(line.endPoint.owner.GetProductionMW() - line.endPoint.owner.GetConsumptionMW());
-            float flow = (pA + pB) * 0.5f;
-
-            line.startPoint.CurrentFlowMW += flow;
-            line.endPoint.CurrentFlowMW += flow;
-        }
-
-        // 3. Emergency fallback – if a point still has 0 voltage but is connected to a line,
-        //    copy voltage from the other end of that line
-        foreach (var line in allLines)
-        {
-            if (line == null || line.startPoint == null || line.endPoint == null) continue;
-            if (line.startPoint.ActualVoltageKV < 0.1f && line.endPoint.ActualVoltageKV > 0.1f)
-                line.startPoint.ActualVoltageKV = line.endPoint.ActualVoltageKV;
-            else if (line.endPoint.ActualVoltageKV < 0.1f && line.startPoint.ActualVoltageKV > 0.1f)
-                line.endPoint.ActualVoltageKV = line.startPoint.ActualVoltageKV;
-        }
-
-        // 4. Update the label text
+        // 3. Refresh labels.
         foreach (var node in allNodes)
         {
             if (node == null) continue;
@@ -267,6 +275,50 @@ public class PowerGridManager : MonoBehaviour
                 cp.UpdateDisplay();
         }
     }
+
+    /// <summary>
+    /// BFS from <paramref name="start"/>, not crossing <paramref name="excludeLine"/>.
+    /// Returns the signed sum of (production − consumption) for every reachable node.
+    /// Positive  = net generating side.
+    /// Negative  = net consuming side.
+    /// </summary>
+    private float SumNetPowerFrom(ConnectionPoint start, PowerLine excludeLine)
+    {
+        var visitedNodes = new HashSet<ElectricalNode>();
+        var visitedCPs = new HashSet<ConnectionPoint>();
+        var queue = new Queue<ConnectionPoint>();
+
+        visitedCPs.Add(start);
+        queue.Enqueue(start);
+
+        while (queue.Count > 0)
+        {
+            var cp = queue.Dequeue();
+
+            if (cp.owner != null)
+                visitedNodes.Add(cp.owner);
+
+            foreach (var line in cp.connectedLines)
+            {
+                if (line == null || line == excludeLine) continue;
+                var other = line.GetOther(cp);
+                if (other != null && visitedCPs.Add(other))
+                    queue.Enqueue(other);
+            }
+
+            foreach (var internalCP in cp.internalConnections)
+            {
+                if (internalCP != null && visitedCPs.Add(internalCP))
+                    queue.Enqueue(internalCP);
+            }
+        }
+
+        float net = 0f;
+        foreach (var n in visitedNodes)
+            net += n.GetProductionMW() - n.GetConsumptionMW();
+        return net;
+    }
+
     // ── Simulation ────────────────────────────────────────────────────────────
 
     void SimulateNetworks()
