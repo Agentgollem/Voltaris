@@ -47,27 +47,24 @@ public class ConnectionPoint : MonoBehaviour
             if (owner == null)
                 Debug.LogError($"[ConnectionPoint] '{name}' has no ElectricalNode above it.", gameObject);
         }
+
+        // Find or create the label
+        Transform existing = transform.Find("InfoLabel");
+        if (existing != null)
+        {
+            infoTransform = existing;
+            infoText = existing.GetComponent<TextMeshPro>();
+        }
+        else
+        {
+            CreateLabel();
+        }
     }
-
-    private void Start()
+    private void CreateLabel()
     {
-        // All Awake() calls have completed by now, so showInfoLabel is
-        // definitively set (e.g. by HouseHold.Awake → DisableInfoLabel).
-        // Don't create any objects at all when the label is suppressed.
-        if (!showInfoLabel) return;
-
         var labelGO = new GameObject("InfoLabel");
         labelGO.transform.SetParent(transform, false);
         labelGO.transform.localPosition = new Vector3(0, 1.8f, 0);
-        infoTransform = labelGO.transform;
-
-        var bgGO = new GameObject("Bg");
-        bgGO.transform.SetParent(labelGO.transform, false);
-        var bg = bgGO.AddComponent<SpriteRenderer>();
-        bg.sprite = Resources.Load<Sprite>("Sprites/WhiteSquare");
-        bg.color = new Color(0, 0, 0, 0.6f);
-        bg.transform.localScale = new Vector3(2.5f, 1.2f, 1f);
-        bg.transform.localPosition = Vector3.zero;
 
         infoText = labelGO.AddComponent<TextMeshPro>();
         infoText.fontSize = 3f;
@@ -75,17 +72,21 @@ public class ConnectionPoint : MonoBehaviour
         infoText.color = Color.white;
         infoText.text = "";
 
-        infoText.gameObject.SetActive(false);   // hidden until hovered
+        infoTransform = labelGO.transform;
+
+        // Visibility controlled by the flag (hidden until hover)
+        labelGO.SetActive(false);   // always start hidden, hover will reveal it
     }
 
     private void LateUpdate()
     {
-        if (infoTransform == null || Camera.main == null) return;
+        if (Camera.main == null) return;
 
-        // Upright camera-facing billboard.
-        Vector3 toCam = Camera.main.transform.position - infoTransform.position;
-        if (toCam.sqrMagnitude < 0.001f) return;
-        infoTransform.rotation = Quaternion.LookRotation(-toCam, Vector3.up);
+        // Billboard – rotate the label to face the camera
+        if (infoTransform != null)
+        {
+            infoTransform.rotation = Quaternion.LookRotation(Camera.main.transform.forward, Vector3.up);
+        }
     }
 
     // ── Public API ────────────────────────────────────────────────────────
@@ -93,25 +94,18 @@ public class ConnectionPoint : MonoBehaviour
     public void DisableInfoLabel()
     {
         showInfoLabel = false;
-        infoText?.gameObject.SetActive(false);
+        if (infoText != null) infoText.gameObject.SetActive(false);
     }
 
     public void SetLabelVisible(bool visible)
     {
-        if (infoText == null) return;
-        infoText.gameObject.SetActive(visible);
+        if (infoText != null) infoText.gameObject.SetActive(visible);
     }
 
     public void UpdateDisplay()
     {
         if (infoText == null) return;
 
-        // Sign convention (matches PowerGridManager assignment):
-        //   + value  → producer (injecting into grid)
-        //   - value  → consumer (drawing from grid)
-        //   ± net    → infrastructure (grid balance = production - consumption)
-        //
-        // "+0.0;-0.0;0.0" always shows an explicit sign on non-zero values.
         string flow = $"{CurrentFlowMW:+0.0;-0.0;0.0} MW";
         string volt = $"{ActualVoltageKV:F1} kV";
         string max = $"Max {maxPowerMW:F0} MW / {nominalVoltageKV:F0} kV";
