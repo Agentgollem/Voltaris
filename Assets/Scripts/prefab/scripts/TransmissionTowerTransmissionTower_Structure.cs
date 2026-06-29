@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public class PowerLineStructure : ElectricalNode
+public class TransmissionTower : ElectricalNode
 {
     public override float GetProductionMW()
     {

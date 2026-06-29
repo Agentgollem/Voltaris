@@ -38,6 +38,9 @@ public abstract class EnergyProducer : ElectricalNode
     public sealed override float GetProductionMW() =>
         isRunning ? currentOutputMW : 0f;
 
+    public sealed override float GetProductionKV() =>
+        isRunning ? ratedVoltageKV : 0f;
+
     public virtual float GetCurrentAmps()
     {
         float voltageV = ratedVoltageKV * 1_000f;

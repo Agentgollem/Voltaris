@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using System.Linq;
+using Unity.Mathematics;
 /// <summary>
 /// Click-and-drag wire placement tool.
 ///
@@ -171,7 +172,13 @@ public class WirePlacementTool : MonoBehaviour
     // ── Wire creation (updated) ─────────────────────────────────────────────────
     void TryCreateWire(ConnectionPoint a, ConnectionPoint b)
     {
-
+        if (math.min(a.ActualVoltageKV, b.ActualVoltageKV) != 0 && a.ActualVoltageKV != b.ActualVoltageKV)
+        {
+            // different voltages, and the different voltage isn't just one of them is 0 and the oth 100
+            // and also check that they don't have the exact same voltage.
+            Debug.LogError($"[WirePlacementTool] difference in voltages between the two connection point ! '{a.ActualVoltageKV}'  '{b.ActualVoltageKV}'");
+            return;
+        }
         // --- Validation that must always hold ---
         if (a.owner == null)
         {

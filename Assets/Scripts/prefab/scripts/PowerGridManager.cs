@@ -251,10 +251,12 @@ public class PowerGridManager : MonoBehaviour
                 if (node is EnergyProducer ep)
                 {
                     cp.CurrentFlowMW = ep.GetProductionMW();
+                    cp.ActualVoltageKV = ep.GetProductionKV();
                 }
                 else if (node is PowerConsumer pc)
                 {
                     cp.CurrentFlowMW = -pc.GetConsumptionMW();
+                    cp.ActualVoltageKV = pc.GetConsumptionKV();
                 }
                 else
                 {

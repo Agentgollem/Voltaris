@@ -75,4 +75,8 @@ public abstract class ElectricalNode : MonoBehaviour
 
     public virtual float GetProductionMW() => 0f;
     public virtual float GetConsumptionMW() => 0f;
+
+    public virtual float GetProductionKV() => 0f;
+    public virtual float GetConsumptionKV() => 0f;
+
 }

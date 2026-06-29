@@ -4,12 +4,15 @@ public class HouseHold : PowerConsumer
 {
     [Header("Household")]
     [SerializeField] private float demandKW = 2f;
+    [SerializeField] private float demandV = 2f;
+
 
     protected override void Awake()
     {
         base.Awake();              // ← this populates connectionPoints and sets layer
         customerCount = 1;
         demandMW = demandKW / 1000f;
+        demandKV = demandV / 1000f;
     }
 
 #if UNITY_EDITOR
@@ -17,6 +20,7 @@ public class HouseHold : PowerConsumer
     {
         customerCount = 1;
         demandMW = demandKW / 1000f;
+        demandKV = demandV / 1000f;
     }
 #endif
 }
