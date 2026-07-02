@@ -191,7 +191,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5565548798256775420, guid: d588a92fd7bfeac44ae31b493bc8f921, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -6.91
+      value: -7.34
       objectReference: {fileID: 0}
     - target: {fileID: 5565548798256775420, guid: d588a92fd7bfeac44ae31b493bc8f921, type: 3}
       propertyPath: m_LocalPosition.y
@@ -199,7 +199,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5565548798256775420, guid: d588a92fd7bfeac44ae31b493bc8f921, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -4.85
+      value: -4.32
       objectReference: {fileID: 0}
     - target: {fileID: 5565548798256775420, guid: d588a92fd7bfeac44ae31b493bc8f921, type: 3}
       propertyPath: m_LocalRotation.w
@@ -231,11 +231,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6527614384038630298, guid: d588a92fd7bfeac44ae31b493bc8f921, type: 3}
       propertyPath: demandV
-      value: 120
+      value: 230
       objectReference: {fileID: 0}
     - target: {fileID: 6527614384038630298, guid: d588a92fd7bfeac44ae31b493bc8f921, type: 3}
       propertyPath: demandKV
-      value: 0.12
+      value: 0.23
       objectReference: {fileID: 0}
     - target: {fileID: 6527614384038630298, guid: d588a92fd7bfeac44ae31b493bc8f921, type: 3}
       propertyPath: demandKW
@@ -747,6 +747,83 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1001 &875282544
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 4136860265818464322, guid: d585193c39ba73b41b3d7ccba147f41d, type: 3}
+      propertyPath: nominalVoltageKV
+      value: 20
+      objectReference: {fileID: 0}
+    - target: {fileID: 6342078899177083195, guid: d585193c39ba73b41b3d7ccba147f41d, type: 3}
+      propertyPath: nominalVoltageKV
+      value: 33
+      objectReference: {fileID: 0}
+    - target: {fileID: 6690645237508295817, guid: d585193c39ba73b41b3d7ccba147f41d, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -1.0968201
+      objectReference: {fileID: 0}
+    - target: {fileID: 6690645237508295817, guid: d585193c39ba73b41b3d7ccba147f41d, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 1.0863692
+      objectReference: {fileID: 0}
+    - target: {fileID: 6690645237508295817, guid: d585193c39ba73b41b3d7ccba147f41d, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 1.2304865
+      objectReference: {fileID: 0}
+    - target: {fileID: 6690645237508295817, guid: d585193c39ba73b41b3d7ccba147f41d, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: -0.19133708
+      objectReference: {fileID: 0}
+    - target: {fileID: 6690645237508295817, guid: d585193c39ba73b41b3d7ccba147f41d, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0.20527074
+      objectReference: {fileID: 0}
+    - target: {fileID: 6690645237508295817, guid: d585193c39ba73b41b3d7ccba147f41d, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0.6019077
+      objectReference: {fileID: 0}
+    - target: {fileID: 6690645237508295817, guid: d585193c39ba73b41b3d7ccba147f41d, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0.74763715
+      objectReference: {fileID: 0}
+    - target: {fileID: 6690645237508295817, guid: d585193c39ba73b41b3d7ccba147f41d, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 78.117
+      objectReference: {fileID: 0}
+    - target: {fileID: 6690645237508295817, guid: d585193c39ba73b41b3d7ccba147f41d, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: -381.839
+      objectReference: {fileID: 0}
+    - target: {fileID: 6690645237508295817, guid: d585193c39ba73b41b3d7ccba147f41d, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: -169.084
+      objectReference: {fileID: 0}
+    - target: {fileID: 7610779092921494837, guid: d585193c39ba73b41b3d7ccba147f41d, type: 3}
+      propertyPath: ratedCapacityMW
+      value: 200
+      objectReference: {fileID: 0}
+    - target: {fileID: 8195519619817812639, guid: d585193c39ba73b41b3d7ccba147f41d, type: 3}
+      propertyPath: m_Name
+      value: transformer (1)
+      objectReference: {fileID: 0}
+    - target: {fileID: 8896474130165148489, guid: d585193c39ba73b41b3d7ccba147f41d, type: 3}
+      propertyPath: inputVoltageKV
+      value: 20
+      objectReference: {fileID: 0}
+    - target: {fileID: 8896474130165148489, guid: d585193c39ba73b41b3d7ccba147f41d, type: 3}
+      propertyPath: outputVoltageKV
+      value: 0.124
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: d585193c39ba73b41b3d7ccba147f41d, type: 3}
 --- !u!1001 &882969629
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1119,6 +1196,10 @@ PrefabInstance:
       propertyPath: maxPowerMW
       value: 45
       objectReference: {fileID: 0}
+    - target: {fileID: 2988378200463958061, guid: 1bc7d746a9827144ea60c3697923e665, type: 3}
+      propertyPath: ratedVoltageKV
+      value: 33
+      objectReference: {fileID: 0}
     - target: {fileID: 3391104694131293415, guid: 1bc7d746a9827144ea60c3697923e665, type: 3}
       propertyPath: m_LocalPosition.x
       value: -6.086854
@@ -1452,9 +1533,17 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 4136860265818464322, guid: d585193c39ba73b41b3d7ccba147f41d, type: 3}
+      propertyPath: nominalVoltageKV
+      value: 33
+      objectReference: {fileID: 0}
+    - target: {fileID: 6342078899177083195, guid: d585193c39ba73b41b3d7ccba147f41d, type: 3}
+      propertyPath: nominalVoltageKV
+      value: 0.23
+      objectReference: {fileID: 0}
     - target: {fileID: 6690645237508295817, guid: d585193c39ba73b41b3d7ccba147f41d, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -5.518
+      value: -5.56
       objectReference: {fileID: 0}
     - target: {fileID: 6690645237508295817, guid: d585193c39ba73b41b3d7ccba147f41d, type: 3}
       propertyPath: m_LocalPosition.y
@@ -1462,7 +1551,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6690645237508295817, guid: d585193c39ba73b41b3d7ccba147f41d, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -3.535
+      value: -3.64
       objectReference: {fileID: 0}
     - target: {fileID: 6690645237508295817, guid: d585193c39ba73b41b3d7ccba147f41d, type: 3}
       propertyPath: m_LocalRotation.w
@@ -1492,9 +1581,13 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 143.172
       objectReference: {fileID: 0}
+    - target: {fileID: 7610779092921494837, guid: d585193c39ba73b41b3d7ccba147f41d, type: 3}
+      propertyPath: ratedCapacityMW
+      value: 50
+      objectReference: {fileID: 0}
     - target: {fileID: 8195519619817812639, guid: d585193c39ba73b41b3d7ccba147f41d, type: 3}
       propertyPath: m_Name
-      value: Household_Pole_transformer
+      value: transformer
       objectReference: {fileID: 0}
     - target: {fileID: 8896474130165148489, guid: d585193c39ba73b41b3d7ccba147f41d, type: 3}
       propertyPath: inputVoltageKV
@@ -1526,3 +1619,4 @@ SceneRoots:
   - {fileID: 246502181}
   - {fileID: 1279976300}
   - {fileID: 2108317663}
+  - {fileID: 875282544}

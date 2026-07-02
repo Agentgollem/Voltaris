@@ -48,7 +48,6 @@ public class ConnectionPoint : MonoBehaviour
                 Debug.LogError($"[ConnectionPoint] '{name}' has no ElectricalNode above it.", gameObject);
         }
 
-        // Find or create the label
         Transform existing = transform.Find("InfoLabel");
         if (existing != null)
         {
@@ -60,6 +59,7 @@ public class ConnectionPoint : MonoBehaviour
             CreateLabel();
         }
     }
+
     private void CreateLabel()
     {
         var labelGO = new GameObject("InfoLabel");
@@ -73,20 +73,15 @@ public class ConnectionPoint : MonoBehaviour
         infoText.text = "";
 
         infoTransform = labelGO.transform;
-
-        // Visibility controlled by the flag (hidden until hover)
         labelGO.SetActive(false);   // always start hidden, hover will reveal it
     }
 
     private void LateUpdate()
     {
         if (Camera.main == null) return;
-
-        // Billboard – rotate the label to face the camera
         if (infoTransform != null)
-        {
-            infoTransform.rotation = Quaternion.LookRotation(Camera.main.transform.forward, Vector3.up);
-        }
+            infoTransform.rotation =
+                Quaternion.LookRotation(Camera.main.transform.forward, Vector3.up);
     }
 
     // ── Public API ────────────────────────────────────────────────────────

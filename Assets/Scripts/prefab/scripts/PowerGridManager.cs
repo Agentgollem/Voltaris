@@ -9,6 +9,7 @@ public class PowerGridManager : MonoBehaviour
     [Header("Registry")]
     [SerializeField] private List<ElectricalNode> allNodes = new();
     [SerializeField] private List<PowerLine> allLines = new();
+    [SerializeField] private List<Transformer> allTransformers = new();
 
     [Header("Simulation")]
     [SerializeField] private float tickIntervalSeconds = 0.5f;
@@ -19,10 +20,10 @@ public class PowerGridManager : MonoBehaviour
     private readonly Dictionary<string, NetworkDataHistory> historyCache = new();
 
     /// <summary>
-    /// Maps each ConnectionPoint to the network component it was discovered in.
-    /// This is the key to per-CP independence: Tower.CP1 and Tower.CP2 can be
-    /// in different networks (different voltages/grids) simultaneously, because
-    /// we track which BFS run found each CP rather than which node owns it.
+    /// Maps each ConnectionPoint to the network it was discovered in.
+    /// Per-CP (not per-node) so that a tower's two CPs can sit in different
+    /// networks, and so that a transformer's SideA and SideB are always in
+    /// separate islands even though they share a root GameObject.
     /// </summary>
     private readonly Dictionary<ConnectionPoint, PowerNetwork> cpNetworkMap = new();
 
@@ -95,7 +96,35 @@ public class PowerGridManager : MonoBehaviour
         if (allLines.Remove(line)) MarkDirty();
     }
 
+    /// <summary>
+    /// Called by <see cref="Transformer.Start"/>.
+    /// TransformerSide nodes self-register as ElectricalNodes through the normal
+    /// RegisterNode path; only the Transformer controller goes here.
+    /// </summary>
+    public void RegisterTransformer(Transformer transformer)
+    {
+        if (transformer != null && !allTransformers.Contains(transformer))
+        {
+            allTransformers.Add(transformer);
+            MarkDirty();
+        }
+    }
+
+    public void UnregisterTransformer(Transformer transformer)
+    {
+        if (allTransformers.Remove(transformer)) MarkDirty();
+    }
+
     public void MarkDirty() => isDirty = true;
+
+    // ── Public query ──────────────────────────────────────────────────────────
+
+    /// Returns the PowerNetwork that owns <paramref name="cp"/> this tick, or null.
+    public PowerNetwork GetNetworkForCP(ConnectionPoint cp)
+    {
+        cpNetworkMap.TryGetValue(cp, out var net);
+        return net;
+    }
 
     // ── Graph building ────────────────────────────────────────────────────────
 
@@ -103,6 +132,7 @@ public class PowerGridManager : MonoBehaviour
     {
         allNodes.RemoveAll(n => n == null);
         allLines.RemoveAll(l => l == null);
+        allTransformers.RemoveAll(t => t == null);
     }
 
     void RebuildNetworks()
@@ -122,8 +152,6 @@ public class PowerGridManager : MonoBehaviour
                     continue;
 
                 var networkNodes = new HashSet<ElectricalNode>();
-                // Track exactly which CPs belong to this BFS component so we
-                // can assign them to the right network in cpNetworkMap later.
                 var componentCPs = new HashSet<ConnectionPoint>();
                 var queue = new Queue<ConnectionPoint>();
 
@@ -200,9 +228,6 @@ public class PowerGridManager : MonoBehaviour
                 historyCache[finalID] = network.History;
                 networks.Add(network);
 
-                // Register every CP discovered in this run → this network.
-                // Because we use per-CP mapping (not per-node), Tower.CP1
-                // and Tower.CP2 can legally point to different networks.
                 foreach (var cp in componentCPs)
                     cpNetworkMap[cp] = network;
             }
@@ -211,11 +236,75 @@ public class PowerGridManager : MonoBehaviour
         OnNetworksRebuilt?.Invoke();
     }
 
+    // ── Simulation ────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Two-pass simulation with transformer resolution in between.
+    ///
+    /// Pass 1  Recalculate every network using each transformer's transfer value
+    ///         from the previous tick.  This gives accurate consumer and native
+    ///         generator totals before any adjustment.
+    ///
+    /// Resolve Each transformer removes its own previous-tick contribution from
+    ///         the pass-1 snapshot to find the native surplus/deficit on each
+    ///         side, then sets a new signed transfer capped at ratedCapacityMW.
+    ///         Flow direction is automatic: surplus side feeds deficit side.
+    ///
+    /// Pass 2  Recalculate every network with the updated transformer values.
+    ///         This is the authoritative state used for display and history.
+    /// </summary>
+    void SimulateNetworks()
+    {
+        // ── Pass 1 ───────────────────────────────────────────────────────────
+        foreach (var net in networks)
+            net.Recalculate();
+
+        // ── Transformer resolution ────────────────────────────────────────────
+        foreach (var tf in allTransformers)
+        {
+            if (tf == null) continue;
+            FindNetworks(tf, out var netA, out var netB);
+            tf.ResolveTransfer(netA, netB);
+        }
+
+        // ── Pass 2 + aggregate totals ─────────────────────────────────────────
+        TotalProductionMW = 0f;
+        OverallFrequencyHz = 0f;
+        TotalCustomers = 0;
+
+        foreach (var net in networks)
+        {
+            net.Recalculate();
+            TotalProductionMW += net.ProductionMW;
+            OverallFrequencyHz += net.FrequencyHz;
+        }
+
+        OverallFrequencyHz = networks.Count > 0
+            ? OverallFrequencyHz / networks.Count
+            : PowerNetwork.NominalHz;
+
+        foreach (var node in allNodes)
+            if (node is PowerConsumer c)
+                TotalCustomers += c.CustomerCount;
+    }
+
+    /// Resolves the PowerNetwork for SideA and SideB of a transformer by looking
+    /// up the first ConnectionPoint of each side in cpNetworkMap.
+    private void FindNetworks(Transformer tf,
+                              out PowerNetwork netA, out PowerNetwork netB)
+    {
+        netA = netB = null;
+        if (tf.SideA?.connectionPoints.Count > 0)
+            cpNetworkMap.TryGetValue(tf.SideA.connectionPoints[0], out netA);
+        if (tf.SideB?.connectionPoints.Count > 0)
+            cpNetworkMap.TryGetValue(tf.SideB.connectionPoints[0], out netB);
+    }
+
     // ── Connection-point display ──────────────────────────────────────────────
 
     void UpdateConnectionPointDisplay()
     {
-        // 0. Reset everything.
+        // 0. Reset.
         foreach (var node in allNodes)
         {
             if (node == null) continue;
@@ -226,22 +315,17 @@ public class PowerGridManager : MonoBehaviour
             }
         }
 
-        // 1. Voltage per-CP from its own BFS component.
-        //    Using cpNetworkMap means a tower whose CP1 is in a 20 kV grid and
-        //    CP2 is in an isolated segment correctly shows 20 kV / 0 kV.
+        // 1. Voltage per-CP from its BFS component.
         foreach (var kvp in cpNetworkMap)
             kvp.Key.ActualVoltageKV = kvp.Value.VoltageKV;
 
-        // 2. Flow per node/CP, with sign.
+        // 2. Flow per node/CP.
         //
-        //   • EnergyProducer → +production MW  (injecting into grid)
-        //   • PowerConsumer  → -consumption MW  (drawing from grid)
-        //   • Infrastructure → signed sum of net power from each connected segment.
-        //       SumNetPowerFrom(otherCP, line) returns production-consumption of
-        //       everything reachable from the far end of that line, preserving the
-        //       sign.  A household-only segment returns −40 MW; a coal plant
-        //       segment returns +45 MW.  Summing them gives the net flow seen by
-        //       that individual connection point.
+        //   EnergyProducer   → +production MW
+        //   PowerConsumer    → -consumption MW
+        //   TransformerSide  → signed net (+ = outputting into network,
+        //                                  - = drawing from network)
+        //   Everything else  → net surplus of the whole island
         foreach (var node in allNodes)
         {
             if (node == null) continue;
@@ -258,9 +342,16 @@ public class PowerGridManager : MonoBehaviour
                     cp.CurrentFlowMW = -pc.GetConsumptionMW();
                     cp.ActualVoltageKV = pc.GetConsumptionKV();
                 }
+                else if (node is TransformerSide)
+                {
+                    // Positive when outputting power into this side's network.
+                    // Negative when drawing power from this side's network.
+                    cp.CurrentFlowMW = node.GetProductionMW() - node.GetConsumptionMW();
+                    // ActualVoltageKV already set from cpNetworkMap above.
+                }
                 else
                 {
-                    // Pass‑through node: show the net surplus of the whole electrical island
+                    // Pass-through / infrastructure: net surplus of the island.
                     if (cpNetworkMap.TryGetValue(cp, out var net))
                         cp.CurrentFlowMW = net.ProductionMW - net.ConsumptionMW;
                     else
@@ -278,11 +369,11 @@ public class PowerGridManager : MonoBehaviour
         }
     }
 
+    // ── Utilities ─────────────────────────────────────────────────────────────
+
     /// <summary>
     /// BFS from <paramref name="start"/>, not crossing <paramref name="excludeLine"/>.
     /// Returns the signed sum of (production − consumption) for every reachable node.
-    /// Positive  = net generating side.
-    /// Negative  = net consuming side.
     /// </summary>
     private float SumNetPowerFrom(ConnectionPoint start, PowerLine excludeLine)
     {
@@ -319,29 +410,5 @@ public class PowerGridManager : MonoBehaviour
         foreach (var n in visitedNodes)
             net += n.GetProductionMW() - n.GetConsumptionMW();
         return net;
-    }
-
-    // ── Simulation ────────────────────────────────────────────────────────────
-
-    void SimulateNetworks()
-    {
-        TotalProductionMW = 0f;
-        OverallFrequencyHz = 0f;
-        TotalCustomers = 0;
-
-        foreach (var net in networks)
-        {
-            net.Recalculate();
-            TotalProductionMW += net.ProductionMW;
-            OverallFrequencyHz += net.FrequencyHz;
-        }
-
-        OverallFrequencyHz = networks.Count > 0
-            ? OverallFrequencyHz / networks.Count
-            : PowerNetwork.NominalHz;
-
-        foreach (var node in allNodes)
-            if (node is PowerConsumer c)
-                TotalCustomers += c.CustomerCount;
     }
 }
